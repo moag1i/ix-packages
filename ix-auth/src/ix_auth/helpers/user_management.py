@@ -212,6 +212,9 @@ async def get_user_with_roles_and_permissions(
         is_active=user.is_active,
         roles=roles,
         permissions=permissions,
+        last_login=user.last_login,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
     )
 
 
