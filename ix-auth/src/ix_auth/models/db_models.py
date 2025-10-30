@@ -266,14 +266,14 @@ class AuthLog(PydanticModel):
     )
 
     event_details: dict[str, Any] | None = Field(
-        default_factory=dict,
+        None,
         description="Additional event details as JSON",
     )
 
     @field_validator("event_details", mode="before")
     @classmethod
     def ensure_event_details(cls, value):
-        """Ensure event_details is never None to satisfy NOT NULL constraint."""
+        """Ensure event_details is never None."""
         if value is None:
             return {}
         return value
