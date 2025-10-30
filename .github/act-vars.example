@@ -1,0 +1,18 @@
+# GitHub Actions variables for local testing with act
+# Copy this file to act-vars and update with your values
+# These are repository or environment variables, not secrets
+
+# Package registry to use for publishing
+# Options: 'github', 'aws', 'azure', 'private', or leave empty to skip
+# For local testing, leave empty to skip publishing
+PACKAGE_REGISTRY=
+
+# Optional: URL of the package registry (for display purposes)
+PACKAGE_REGISTRY_URL=https://pypi.org
+
+# AWS CodeArtifact configuration (if PACKAGE_REGISTRY=aws)
+AWS_REGION=us-east-1
+CODEARTIFACT_DOMAIN=your-domain
+CODEARTIFACT_REPO=your-repo
+
+# Note: Azure and private PyPI URLs are configured via secrets, not variables

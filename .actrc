@@ -1,0 +1,20 @@
+# act configuration file
+# See: https://github.com/nektos/act
+
+# Use a better Ubuntu image that's more compatible with GitHub Actions
+# The default act image is minimal and missing many tools
+-P ubuntu-latest=catthehacker/ubuntu:act-latest
+-P ubuntu-22.04=catthehacker/ubuntu:act-22.04
+-P ubuntu-20.04=catthehacker/ubuntu:act-20.04
+
+# Reuse containers between runs for faster execution
+--reuse
+
+# Use Docker host network (helpful for services like PostgreSQL)
+--network host
+
+# Set default event type (commented out, use default)
+# --eventpath .github/workflows/event.json
+
+# Verbose output for debugging
+# --verbose

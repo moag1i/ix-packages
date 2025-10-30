@@ -48,7 +48,7 @@ jobs:
       run: |
         cd ix-auth
         uv venv
-        uv sync --dev
+        uv sync --all-extras
 
     - name: Run linting
       run: |
@@ -76,6 +76,7 @@ jobs:
     - name: Upload coverage reports
       uses: codecov/codecov-action@v4
       with:
+        token: ${{ secrets.CODECOV_TOKEN }}
         file: ./ix-auth/coverage.xml
         flags: unittests
         name: codecov-${{ matrix.python-version }}
@@ -92,9 +93,12 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VERSION }}
 
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+
     - name: Install security tools
       run: |
-        pip install bandit[toml] safety
+        uv pip install --system bandit[toml] safety
 
     - name: Run Bandit security scan
       run: |
@@ -104,7 +108,7 @@ jobs:
     - name: Check for known vulnerabilities
       run: |
         cd ix-auth
-        pip install -e .
+        uv pip install --system -e .
         safety check
 
   build:
@@ -120,18 +124,17 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VERSION }}
 
-    - name: Install build tools
-      run: |
-        pip install --upgrade pip
-        pip install build wheel twine
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
 
     - name: Build distribution packages
       run: |
         cd ix-auth
-        python -m build
+        uv build
 
     - name: Check package with twine
       run: |
+        uv pip install --system twine
         cd ix-auth
         twine check dist/*
 
@@ -149,7 +152,6 @@ jobs:
 
     environment:
       name: production
-      url: ${{ secrets.PACKAGE_REGISTRY_URL }}
 
     steps:
     - uses: actions/checkout@v4
@@ -165,17 +167,23 @@ jobs:
         name: dist-packages
         path: dist/
 
-    - name: Install twine
-      run: pip install twine
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
 
-    # Option A: Publish to GitHub Packages (PyPI)
+    - name: Install twine
+      run: uv pip install --system twine
+
+    # Option A: Publish to GitHub Packages
+    # Note: GitHub doesn't have a native PyPI registry, this would need to be configured separately
+    # For now, this is a placeholder - you may want to use GitHub releases instead
     - name: Publish to GitHub Packages
       if: ${{ vars.PACKAGE_REGISTRY == 'github' }}
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        twine upload --repository-url https://ghcr.io/pypi/${{ github.repository_owner }}/ dist/*
+        echo "GitHub doesn't have a native PyPI registry. Consider using GitHub releases or a different registry."
+        echo "Skipping publish to GitHub Packages"
 
     # Option B: Publish to AWS CodeArtifact
     - name: Configure AWS credentials

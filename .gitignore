@@ -38,3 +38,9 @@ htmlcov/
 # Local testing
 test_*.py
 !tests/test_*.py
+
+# GitHub Actions local testing with act
+.github/act-secrets
+.github/act-vars
+.github/event.json
+*.bak
