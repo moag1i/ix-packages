@@ -320,11 +320,8 @@ async def log_auth_event(
         )
         ```
     """
+    # Use provided details dict, or empty dict if none
     event_details = details or {}
-    if ip_address and "ip_address" not in event_details:
-        event_details["ip_address"] = ip_address
-    if user_agent and "user_agent" not in event_details:
-        event_details["user_agent"] = user_agent
 
     auth_log = AuthLog(
         id=uuid4(),
