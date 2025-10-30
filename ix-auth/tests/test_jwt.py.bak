@@ -1,0 +1,249 @@
+"""Tests for JWT utilities."""
+
+import time
+from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
+from uuid import uuid4
+
+import pytest
+from jose import JWTError, jwt
+
+from ix_auth import AuthSettings
+from ix_auth.utils.jwt import create_token, decode_token, validate_token
+from ix_auth.models import TokenPayload, User
+
+
+class TestJWTOperations:
+    """Test JWT creation, decoding, and validation."""
+
+    def test_create_token_with_user(self, auth_settings, sample_user):
+        """Test creating a JWT token from a User object."""
+        token = create_token(
+            user=sample_user,
+            settings=auth_settings,
+            roles=["admin"],
+            permissions=["read", "write"]
+        )
+
+        # Decode and verify the token
+        decoded = jwt.decode(
+            token,
+            auth_settings.jwt_secret,
+            algorithms=[auth_settings.jwt_algorithm]
+        )
+
+        assert decoded["sub"] == str(sample_user.id)
+        assert decoded["email"] == sample_user.email
+        assert decoded["name"] == sample_user.name
+        assert decoded["roles"] == ["admin"]
+        assert decoded["permissions"] == ["read", "write"]
+        assert "exp" in decoded
+        assert "iat" in decoded
+
+    def test_create_token_expiration(self, auth_settings, sample_user):
+        """Test token expiration time calculation."""
+        # Create token with custom expiration
+        custom_settings = AuthSettings(
+            jwt_secret=auth_settings.jwt_secret,
+            jwt_expire_minutes=30
+        )
+
+        token = create_token(
+            user=sample_user,
+            settings=custom_settings,
+            roles=[],
+            permissions=[]
+        )
+
+        decoded = jwt.decode(
+            token,
+            custom_settings.jwt_secret,
+            algorithms=[custom_settings.jwt_algorithm]
+        )
+
+        # Check expiration is approximately 30 minutes from now
+        exp_time = decoded["exp"]
+        current_time = time.time()
+        time_diff = exp_time - current_time
+
+        # Allow 5 second tolerance for test execution
+        assert 1795 <= time_diff <= 1805  # ~30 minutes
+
+    def test_decode_token_valid(self, auth_settings, sample_user):
+        """Test decoding a valid token."""
+        token = create_token(
+            user=sample_user,
+            settings=auth_settings,
+            roles=["user"],
+            permissions=["read"]
+        )
+
+        payload = decode_token(token, auth_settings)
+
+        assert payload.user_id == sample_user.id
+        assert payload.email == sample_user.email
+        assert payload.name == sample_user.name
+        assert payload.roles == ["user"]
+        assert payload.permissions == ["read"]
+
+    def test_decode_token_invalid_signature(self, auth_settings, sample_user):
+        """Test decoding token with invalid signature."""
+        token = create_token(
+            user=sample_user,
+            settings=auth_settings,
+            roles=[],
+            permissions=[]
+        )
+
+        # Try to decode with wrong secret
+        wrong_settings = AuthSettings(jwt_secret="wrong-secret")
+
+        with pytest.raises(JWTError):
+            decode_token(token, wrong_settings)
+
+    def test_decode_token_expired(self, auth_settings, sample_user):
+        """Test decoding an expired token."""
+        # Create token that expires immediately
+        expired_settings = AuthSettings(
+            jwt_secret=auth_settings.jwt_secret,
+            jwt_expire_minutes=-1  # Expired 1 minute ago
+        )
+
+        token = create_token(
+            user=sample_user,
+            settings=expired_settings,
+            roles=[],
+            permissions=[]
+        )
+
+        with pytest.raises(JWTError) as exc_info:
+            decode_token(token, auth_settings)
+
+        assert "expired" in str(exc_info.value).lower()
+
+    def test_decode_token_malformed(self, auth_settings):
+        """Test decoding a malformed token."""
+        malformed_tokens = [
+            "not.a.token",
+            "invalid",
+            "",
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",  # Incomplete token
+        ]
+
+        for token in malformed_tokens:
+            with pytest.raises(JWTError):
+                decode_token(token, auth_settings)
+
+    def test_validate_token_valid(self, auth_settings, sample_user):
+        """Test validating a valid token."""
+        token = create_token(
+            user=sample_user,
+            settings=auth_settings,
+            roles=["admin"],
+            permissions=["read", "write"]
+        )
+
+        is_valid, payload = validate_token(token, auth_settings)
+
+        assert is_valid is True
+        assert payload is not None
+        assert payload.user_id == sample_user.id
+        assert payload.roles == ["admin"]
+
+    def test_validate_token_invalid(self, auth_settings):
+        """Test validating an invalid token."""
+        invalid_tokens = [
+            "invalid.token.here",
+            "",
+            None,
+        ]
+
+        for token in invalid_tokens:
+            is_valid, payload = validate_token(token or "", auth_settings)
+            assert is_valid is False
+            assert payload is None
+
+    def test_token_with_custom_claims(self, auth_settings, sample_user):
+        """Test token with additional custom claims."""
+        token = create_token(
+            user=sample_user,
+            settings=auth_settings,
+            roles=["admin", "user"],
+            permissions=["sui:read", "sui:write", "rules:manage"],
+            additional_claims={
+                "department": "engineering",
+                "team": "platform",
+                "access_level": 3
+            }
+        )
+
+        decoded = jwt.decode(
+            token,
+            auth_settings.jwt_secret,
+            algorithms=[auth_settings.jwt_algorithm]
+        )
+
+        assert decoded["department"] == "engineering"
+        assert decoded["team"] == "platform"
+        assert decoded["access_level"] == 3
+
+    def test_token_payload_model(self, sample_token_payload):
+        """Test TokenPayload model validation."""
+        assert sample_token_payload.sub == str(sample_token_payload.user_id)
+        assert sample_token_payload.email == "test@example.com"
+        assert sample_token_payload.name == "Test User"
+        assert "admin" in sample_token_payload.roles
+        assert "sui:read" in sample_token_payload.permissions
+
+    def test_token_without_optional_fields(self, auth_settings):
+        """Test creating token with minimal user information."""
+        minimal_user = User(
+            id=uuid4(),
+            email="minimal@example.com",
+            is_active=True,
+            is_system=False,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+            # name is optional and not provided
+        )
+
+        token = create_token(
+            user=minimal_user,
+            settings=auth_settings,
+            roles=[],
+            permissions=[]
+        )
+
+        payload = decode_token(token, auth_settings)
+        assert payload.email == "minimal@example.com"
+        assert payload.name is None or payload.name == ""
+        assert payload.roles == []
+        assert payload.permissions == []
+
+    @pytest.mark.parametrize("algorithm", ["HS256", "HS384", "HS512"])
+    def test_different_algorithms(self, sample_user, algorithm):
+        """Test token creation with different algorithms."""
+        settings = AuthSettings(
+            jwt_secret="test-secret-key",
+            jwt_algorithm=algorithm
+        )
+
+        token = create_token(
+            user=sample_user,
+            settings=settings,
+            roles=["test"],
+            permissions=["test"]
+        )
+
+        # Should decode successfully with correct algorithm
+        payload = decode_token(token, settings)
+        assert payload.user_id == sample_user.id
+
+        # Should fail with wrong algorithm
+        wrong_settings = AuthSettings(
+            jwt_secret="test-secret-key",
+            jwt_algorithm="RS256"  # Different algorithm family
+        )
+
+        with pytest.raises(JWTError):
+            decode_token(token, wrong_settings)

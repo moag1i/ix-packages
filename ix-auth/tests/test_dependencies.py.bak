@@ -1,0 +1,162 @@
+"""Tests for FastAPI authentication dependencies."""
+
+from unittest.mock import MagicMock
+from uuid import uuid4
+
+import pytest
+from fastapi import HTTPException
+
+from ix_auth import CurrentUser
+from ix_auth.dependencies.fastapi import (
+    get_current_user,
+    get_current_user_required,
+    require_permissions,
+    require_roles,
+)
+from ix_auth.models import TokenPayload
+
+
+class TestFastAPIDependencies:
+    """Test FastAPI authentication dependencies."""
+
+    @pytest.mark.asyncio
+    async def test_get_current_user_authenticated(self, authenticated_request, sample_token_payload):
+        """Test getting current user from authenticated request."""
+        current_user = await get_current_user(authenticated_request)
+
+        assert isinstance(current_user, CurrentUser)
+        assert current_user.id == sample_token_payload.user_id
+        assert current_user.email == sample_token_payload.email
+        assert current_user.name == sample_token_payload.name
+        assert current_user.roles == sample_token_payload.roles
+        assert current_user.permissions == sample_token_payload.permissions
+
+    @pytest.mark.asyncio
+    async def test_get_current_user_not_authenticated(self, mock_request):
+        """Test getting current user when not authenticated."""
+        mock_request.state.is_authenticated = False
+        mock_request.state.user = None
+
+        current_user = await get_current_user(mock_request)
+        assert current_user is None
+
+    @pytest.mark.asyncio
+    async def test_get_current_user_required(self, authenticated_request):
+        """Test required current user."""
+        current_user = await get_current_user_required(
+            await get_current_user(authenticated_request)
+        )
+        assert current_user is not None
+
+    @pytest.mark.asyncio
+    async def test_get_current_user_required_fails(self, mock_request):
+        """Test required current user fails when not authenticated."""
+        mock_request.state.is_authenticated = False
+        mock_request.state.user = None
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_current_user_required(None)
+
+        assert exc_info.value.status_code == 401
+
+    def test_require_permissions_single(self, current_user):
+        """Test requiring a single permission."""
+        dependency = require_permissions("sui:read")
+
+        # User has the permission
+        current_user.permissions = ["sui:read", "sui:write"]
+        result = dependency(current_user)
+        assert result == current_user
+
+        # User doesn't have the permission
+        current_user.permissions = ["rules:read"]
+        with pytest.raises(HTTPException) as exc_info:
+            dependency(current_user)
+
+        assert exc_info.value.status_code == 403
+        assert "Insufficient permissions" in exc_info.value.detail
+
+    def test_require_permissions_multiple(self, current_user):
+        """Test requiring multiple permissions."""
+        dependency = require_permissions("sui:read", "sui:write")
+
+        # User has all permissions
+        current_user.permissions = ["sui:read", "sui:write", "rules:read"]
+        result = dependency(current_user)
+        assert result == current_user
+
+        # User has some but not all permissions
+        current_user.permissions = ["sui:read", "rules:read"]
+        with pytest.raises(HTTPException) as exc_info:
+            dependency(current_user)
+
+        assert exc_info.value.status_code == 403
+
+    def test_require_roles_single(self, current_user):
+        """Test requiring a single role."""
+        dependency = require_roles("admin")
+
+        # User has the role
+        current_user.roles = ["admin", "user"]
+        result = dependency(current_user)
+        assert result == current_user
+
+        # User doesn't have the role
+        current_user.roles = ["user", "viewer"]
+        with pytest.raises(HTTPException) as exc_info:
+            dependency(current_user)
+
+        assert exc_info.value.status_code == 403
+        assert "Insufficient roles" in exc_info.value.detail
+
+    def test_require_roles_multiple(self, current_user):
+        """Test requiring multiple roles."""
+        dependency = require_roles("admin", "manager")
+
+        # User has all roles
+        current_user.roles = ["admin", "manager", "user"]
+        result = dependency(current_user)
+        assert result == current_user
+
+        # User has some but not all roles
+        current_user.roles = ["admin", "user"]
+        with pytest.raises(HTTPException) as exc_info:
+            dependency(current_user)
+
+        assert exc_info.value.status_code == 403
+
+    def test_current_user_model(self, sample_user_id):
+        """Test CurrentUser model."""
+        user = CurrentUser(
+            id=sample_user_id,
+            email="test@example.com",
+            name="Test User",
+            roles=["admin", "user"],
+            permissions=["read", "write", "delete"]
+        )
+
+        # Test has_permission method
+        assert user.has_permission("read") is True
+        assert user.has_permission("write") is True
+        assert user.has_permission("execute") is False
+
+        # Test has_role method
+        assert user.has_role("admin") is True
+        assert user.has_role("user") is True
+        assert user.has_role("manager") is False
+
+        # Test has_any_permission method
+        assert user.has_any_permission(["read", "execute"]) is True
+        assert user.has_any_permission(["execute", "deploy"]) is False
+
+        # Test has_any_role method
+        assert user.has_any_role(["admin", "manager"]) is True
+        assert user.has_any_role(["manager", "viewer"]) is False
+
+        # Test has_all_permissions method
+        assert user.has_all_permissions(["read", "write"]) is True
+        assert user.has_all_permissions(["read", "write", "execute"]) is False
+
+        # Test has_all_roles method
+        assert user.has_all_roles(["admin", "user"]) is True
+        assert user.has_all_roles(["admin", "user", "manager"]) is False

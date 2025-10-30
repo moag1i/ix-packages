@@ -1,0 +1,119 @@
+name: Version Bump
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+        - patch
+        - minor
+        - major
+      package:
+        description: 'Package to bump version for'
+        required: true
+        default: 'ix-auth'
+        type: choice
+        options:
+        - ix-auth
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install bump2version
+      run: pip install bump2version
+
+    - name: Configure git
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+
+    - name: Get current version
+      id: current_version
+      run: |
+        cd ${{ github.event.inputs.package }}
+        VERSION=$(grep '^version = ' pyproject.toml | cut -d '"' -f 2)
+        echo "current_version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Current version: $VERSION"
+
+    - name: Calculate new version
+      id: new_version
+      run: |
+        VERSION=${{ steps.current_version.outputs.current_version }}
+        IFS='.' read -r major minor patch <<< "$VERSION"
+
+        case "${{ github.event.inputs.version_type }}" in
+          major)
+            new_major=$((major + 1))
+            new_version="${new_major}.0.0"
+            ;;
+          minor)
+            new_minor=$((minor + 1))
+            new_version="${major}.${new_minor}.0"
+            ;;
+          patch)
+            new_patch=$((patch + 1))
+            new_version="${major}.${minor}.${new_patch}"
+            ;;
+        esac
+
+        echo "new_version=$new_version" >> $GITHUB_OUTPUT
+        echo "New version: $new_version"
+
+    - name: Update version in pyproject.toml
+      run: |
+        cd ${{ github.event.inputs.package }}
+        sed -i 's/^version = ".*"/version = "${{ steps.new_version.outputs.new_version }}"/' pyproject.toml
+
+    - name: Update version in __init__.py
+      run: |
+        cd ${{ github.event.inputs.package }}
+        sed -i 's/__version__ = ".*"/__version__ = "${{ steps.new_version.outputs.new_version }}"/' src/ix_auth/__init__.py
+
+    - name: Create version bump commit
+      run: |
+        cd ${{ github.event.inputs.package }}
+        git add pyproject.toml src/ix_auth/__init__.py
+        git commit -m "chore: bump ${{ github.event.inputs.package }} version to ${{ steps.new_version.outputs.new_version }}"
+
+    - name: Create and push tag
+      run: |
+        TAG="${{ github.event.inputs.package }}-v${{ steps.new_version.outputs.new_version }}"
+        git tag -a "$TAG" -m "Release ${{ github.event.inputs.package }} version ${{ steps.new_version.outputs.new_version }}"
+        git push origin HEAD:main --follow-tags
+
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v6
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: "chore: bump ${{ github.event.inputs.package }} version to ${{ steps.new_version.outputs.new_version }}"
+        title: "chore: bump ${{ github.event.inputs.package }} to v${{ steps.new_version.outputs.new_version }}"
+        body: |
+          ## Version Bump
+
+          Bumping ${{ github.event.inputs.package }} version:
+          - Current: v${{ steps.current_version.outputs.current_version }}
+          - New: v${{ steps.new_version.outputs.new_version }}
+          - Type: ${{ github.event.inputs.version_type }}
+
+          This PR was automatically created by the version bump workflow.
+        branch: version-bump/${{ github.event.inputs.package }}-${{ steps.new_version.outputs.new_version }}
+        delete-branch: true

@@ -1,0 +1,82 @@
+# Pre-commit hooks for ix-auth
+# See https://pre-commit.com for more information
+
+repos:
+  # General hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+
+  # Python code formatting and linting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      # Run the linter
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      # Run the formatter
+      - id: ruff-format
+
+  # Type checking
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.14.1
+    hooks:
+      - id: mypy
+        files: ^src/
+        args: [--strict, --ignore-missing-imports]
+        additional_dependencies:
+          - pydantic>=2.0
+          - fastapi
+          - httpx
+          - PyJWT
+          - types-PyJWT
+
+  # Security checks
+  - repo: https://github.com/PyCQA/bandit
+    rev: '1.8.0'
+    hooks:
+      - id: bandit
+        args: ['-ll', '--recursive', 'src/']
+        exclude: ^tests/
+
+  # Documentation
+  - repo: https://github.com/pycqa/pydocstyle
+    rev: 6.3.0
+    hooks:
+      - id: pydocstyle
+        files: ^src/
+        args: ['--convention=google']
+
+# Configuration
+default_language_version:
+  python: python3.11
+
+exclude: |
+  (?x)^(
+    .git/|
+    .venv/|
+    venv/|
+    build/|
+    dist/|
+    \.eggs/|
+    .*\.egg-info/|
+    __pycache__/|
+    \.pytest_cache/|
+    \.mypy_cache/|
+    \.coverage|
+    htmlcov/|
+    \.tox/|
+    tests/.*\.bak
+  )$

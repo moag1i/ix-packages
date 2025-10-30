@@ -1,0 +1,277 @@
+"""Tests for FastAPI authentication middleware."""
+
+from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
+
+import pytest
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
+
+from ix_auth import AuthSettings
+from ix_auth.utils.jwt import create_token
+from ix_auth.middleware.fastapi import AuthMiddleware
+from ix_auth.models import TokenPayload, User
+
+
+class TestAuthMiddleware:
+    """Test FastAPI authentication middleware."""
+
+    @pytest.fixture
+    def middleware(self, auth_settings, fastapi_app):
+        """Create middleware instance."""
+        return AuthMiddleware(
+            app=fastapi_app,
+            settings=auth_settings
+        )
+
+    @pytest.mark.asyncio
+    async def test_public_path_bypass(self, middleware, mock_request):
+        """Test that public paths bypass authentication."""
+        # Configure public paths
+        middleware.settings.public_paths = ["/health", "/metrics", "/api/public/*"]
+
+        # Test exact match
+        mock_request.url.path = "/health"
+        response = await middleware.dispatch(mock_request, AsyncMock())
+
+        assert mock_request.state.user is None
+        assert mock_request.state.is_authenticated is False
+
+        # Test wildcard match
+        mock_request.url.path = "/api/public/docs"
+        response = await middleware.dispatch(mock_request, AsyncMock())
+
+        assert mock_request.state.user is None
+        assert mock_request.state.is_authenticated is False
+
+    @pytest.mark.asyncio
+    async def test_valid_token_authentication(self, middleware, mock_request, sample_user, auth_settings):
+        """Test successful authentication with valid token."""
+        # Create a valid token
+        token = create_token(
+            user=sample_user,
+            settings=auth_settings,
+            roles=["admin"],
+            permissions=["read", "write"]
+        )
+
+        mock_request.headers = {"Authorization": f"Bearer {token}"}
+        mock_request.url.path = "/api/protected"
+
+        call_next = AsyncMock(return_value=Response("OK"))
+        response = await middleware.dispatch(mock_request, call_next)
+
+        # Check that user was set in request state
+        assert mock_request.state.is_authenticated is True
+        assert mock_request.state.user is not None
+        assert mock_request.state.user.user_id == sample_user.id
+        assert mock_request.state.user.email == sample_user.email
+        assert "admin" in mock_request.state.user.roles
+
+        # Check that the request continued
+        call_next.assert_called_once_with(mock_request)
+
+    @pytest.mark.asyncio
+    async def test_invalid_token_rejection(self, middleware, mock_request):
+        """Test rejection of invalid token."""
+        mock_request.headers = {"Authorization": "Bearer invalid.token.here"}
+        mock_request.url.path = "/api/protected"
+
+        call_next = AsyncMock()
+        response = await middleware.dispatch(mock_request, call_next)
+
+        # Should return 401 Unauthorized
+        assert isinstance(response, JSONResponse)
+        assert response.status_code == 401
+
+        # Should not call next handler
+        call_next.assert_not_called()
+
+        # Request state should indicate not authenticated
+        assert mock_request.state.is_authenticated is False
+        assert mock_request.state.user is None
+
+    @pytest.mark.asyncio
+    async def test_missing_token(self, middleware, mock_request):
+        """Test handling of missing authorization header."""
+        mock_request.headers = {}  # No Authorization header
+        mock_request.url.path = "/api/protected"
+
+        call_next = AsyncMock()
+        response = await middleware.dispatch(mock_request, call_next)
+
+        # Should return 401 Unauthorized
+        assert isinstance(response, JSONResponse)
+        assert response.status_code == 401
+
+        # Should not call next handler
+        call_next.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_expired_token(self, middleware, mock_request, sample_user, auth_settings):
+        """Test handling of expired token."""
+        # Create an expired token
+        expired_settings = AuthSettings(
+            jwt_secret=auth_settings.jwt_secret,
+            jwt_expire_minutes=-1  # Already expired
+        )
+
+        token = create_token(
+            user=sample_user,
+            settings=expired_settings,
+            roles=["admin"],
+            permissions=[]
+        )
+
+        mock_request.headers = {"Authorization": f"Bearer {token}"}
+        mock_request.url.path = "/api/protected"
+
+        call_next = AsyncMock()
+        response = await middleware.dispatch(mock_request, call_next)
+
+        # Should return 401 Unauthorized
+        assert isinstance(response, JSONResponse)
+        assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_malformed_authorization_header(self, middleware, mock_request):
+        """Test various malformed authorization headers."""
+        malformed_headers = [
+            {"Authorization": "NotBearer token"},
+            {"Authorization": "Bearer"},  # Missing token
+            {"Authorization": "  "},  # Empty
+            {"Authorization": "Bearer token1 token2"},  # Multiple tokens
+        ]
+
+        for headers in malformed_headers:
+            mock_request.headers = headers
+            mock_request.url.path = "/api/protected"
+
+            call_next = AsyncMock()
+            response = await middleware.dispatch(mock_request, call_next)
+
+            assert isinstance(response, JSONResponse)
+            assert response.status_code == 401
+            call_next.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_case_insensitive_bearer(self, middleware, mock_request, sample_user, auth_settings):
+        """Test that 'Bearer' prefix is case-insensitive."""
+        token = create_token(
+            user=sample_user,
+            settings=auth_settings,
+            roles=["user"],
+            permissions=[]
+        )
+
+        # Test different cases
+        for prefix in ["Bearer", "bearer", "BEARER", "BeArEr"]:
+            mock_request.headers = {"Authorization": f"{prefix} {token}"}
+            mock_request.url.path = "/api/protected"
+
+            call_next = AsyncMock(return_value=Response("OK"))
+            response = await middleware.dispatch(mock_request, call_next)
+
+            assert mock_request.state.is_authenticated is True
+            call_next.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_options_request_bypass(self, middleware, mock_request):
+        """Test that OPTIONS requests bypass authentication."""
+        mock_request.method = "OPTIONS"
+        mock_request.url.path = "/api/protected"
+        mock_request.headers = {}  # No auth header
+
+        call_next = AsyncMock(return_value=Response("OK"))
+        response = await middleware.dispatch(mock_request, call_next)
+
+        # Should pass through without authentication
+        call_next.assert_called_once()
+        assert mock_request.state.is_authenticated is False
+
+    @pytest.mark.asyncio
+    async def test_middleware_disabled(self, auth_settings, fastapi_app, mock_request):
+        """Test middleware when authentication is disabled."""
+        disabled_settings = AuthSettings(
+            jwt_secret="secret",
+            enabled=False  # Disable authentication
+        )
+
+        middleware = AuthMiddleware(
+            app=fastapi_app,
+            settings=disabled_settings
+        )
+
+        mock_request.headers = {}  # No auth header
+        mock_request.url.path = "/api/protected"
+
+        call_next = AsyncMock(return_value=Response("OK"))
+        response = await middleware.dispatch(mock_request, call_next)
+
+        # Should pass through when disabled
+        call_next.assert_called_once()
+        assert mock_request.state.is_authenticated is False
+
+    @pytest.mark.asyncio
+    async def test_wildcard_path_matching(self, middleware, mock_request):
+        """Test wildcard path matching for public paths."""
+        middleware.settings.public_paths = [
+            "/api/v*/health",
+            "/docs/*",
+            "*/public",
+            "/static/**"
+        ]
+
+        test_cases = [
+            ("/api/v1/health", True),
+            ("/api/v2/health", True),
+            ("/docs/swagger", True),
+            ("/anything/public", True),
+            ("/static/css/main.css", True),
+            ("/static/js/deep/path/file.js", True),
+            ("/api/protected", False),
+            ("/private/data", False),
+        ]
+
+        for path, should_be_public in test_cases:
+            mock_request.url.path = path
+            mock_request.headers = {}  # No auth
+
+            call_next = AsyncMock(return_value=Response("OK"))
+            response = await middleware.dispatch(mock_request, call_next)
+
+            if should_be_public:
+                call_next.assert_called_once()
+            else:
+                assert isinstance(response, JSONResponse)
+                assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_token_payload_in_request_state(self, middleware, mock_request, sample_user, auth_settings):
+        """Test that full token payload is available in request state."""
+        token = create_token(
+            user=sample_user,
+            settings=auth_settings,
+            roles=["admin", "user"],
+            permissions=["sui:read", "sui:write", "rules:manage"],
+            additional_claims={
+                "department": "engineering",
+                "clearance_level": 5
+            }
+        )
+
+        mock_request.headers = {"Authorization": f"Bearer {token}"}
+        mock_request.url.path = "/api/protected"
+
+        call_next = AsyncMock(return_value=Response("OK"))
+        await middleware.dispatch(mock_request, call_next)
+
+        # Verify full payload is in state
+        payload = mock_request.state.user
+        assert payload.user_id == sample_user.id
+        assert payload.email == sample_user.email
+        assert set(payload.roles) == {"admin", "user"}
+        assert set(payload.permissions) == {"sui:read", "sui:write", "rules:manage"}
+
+        # Note: Additional claims may not be in TokenPayload model
+        # but the standard claims should all be there
