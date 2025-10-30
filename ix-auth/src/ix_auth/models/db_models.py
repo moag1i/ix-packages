@@ -12,7 +12,7 @@ from typing import Any, ClassVar
 from uuid import UUID
 
 from ff_storage.pydantic_support import PydanticModel
-from pydantic import EmailStr, Field
+from pydantic import EmailStr, Field, field_validator
 
 
 class User(PydanticModel):
@@ -265,10 +265,18 @@ class AuthLog(PydanticModel):
         max_length=50,
     )
 
-    event_details: dict[str, Any] = Field(
+    event_details: dict[str, Any] | None = Field(
         default_factory=dict,
         description="Additional event details as JSON",
     )
+
+    @field_validator("event_details", mode="before")
+    @classmethod
+    def ensure_event_details(cls, value):
+        """Ensure event_details is never None to satisfy NOT NULL constraint."""
+        if value is None:
+            return {}
+        return value
 
     # ==================== REQUEST INFO ====================
 
