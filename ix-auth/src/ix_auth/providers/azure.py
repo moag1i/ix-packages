@@ -227,6 +227,33 @@ class AzureADProvider(BaseAuthProvider):
             response.raise_for_status()
             return AzureUserInfo(**response.json())
 
+    async def get_user_photo(self, access_token: str, size: str = "96x96") -> bytes | None:
+        """
+        Get user profile photo from Microsoft Graph API.
+
+        Args:
+            access_token: Azure AD access token
+            size: Photo size (48x48, 64x64, 96x96, 120x120, 240x240, 360x360, 432x432, 504x504, 648x648)
+
+        Returns:
+            Photo bytes (JPEG/PNG) or None if user has no photo
+
+        Raises:
+            httpx.HTTPError: If API request fails (except 404)
+        """
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{self.graph_api_base}/me/photos/{size}/$value",
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+
+            # User has no profile photo
+            if response.status_code == 404:
+                return None
+
+            response.raise_for_status()
+            return response.content
+
     async def validate_token(self, token: str) -> TokenPayload:
         """
         Validate Azure AD JWT token using JWKS.

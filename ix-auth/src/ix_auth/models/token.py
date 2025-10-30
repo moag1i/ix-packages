@@ -89,6 +89,7 @@ class AzureUserInfo(BaseModel):
     displayName: str = Field(..., description="User display name")
     givenName: str | None = Field(None, description="First name")
     surname: str | None = Field(None, description="Last name")
+    has_photo: bool = Field(False, description="Whether user has a profile photo in Azure AD")
 
 
 class MockTokenRequest(BaseModel):

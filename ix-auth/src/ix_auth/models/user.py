@@ -30,6 +30,7 @@ class UserWithRoles(BaseModel):
     roles: list[str]  # Role names
     created_at: datetime | None
     updated_at: datetime | None
+    photo_url: str | None = None  # URL to user's profile photo
 
 
 class CurrentUser(BaseModel):
@@ -46,3 +47,4 @@ class CurrentUser(BaseModel):
     permissions: list[str]  # Format: "resource:action"
     tenant_id: UUID | None = None  # NULL = InsurX admin (cross-tenant access)
     tenant_type: str | None = None  # 'broker' | 'underwriter' | None
+    photo_url: str | None = None  # URL to user's profile photo

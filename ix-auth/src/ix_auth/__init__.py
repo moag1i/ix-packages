@@ -15,10 +15,19 @@ from .models import (
     Token,
     TokenPayload,
     TokenRequest,
+    MockTokenRequest,
     # User DTOs
     CurrentUser,
     UserCreate,
     UserWithRoles,
+    # Database models
+    User,
+    Role,
+    Permission,
+    UserRole,
+    RolePermission,
+    AuthLog,
+    AzureTenantMapping,
 )
 from .providers import (
     BaseAuthProvider,
@@ -45,6 +54,12 @@ from .dependencies import (
 )
 from .repositories import UserRepository
 from .utils.roles import initialize_roles_and_permissions
+from .helpers import (
+    provision_user_from_azure,
+    get_user_with_roles_and_permissions,
+    assign_role_to_user,
+    log_auth_event,
+)
 
 __version__ = "0.1.0"
 
@@ -55,10 +70,19 @@ __all__ = [
     "Token",
     "TokenPayload",
     "TokenRequest",
+    "MockTokenRequest",
     # User DTOs
     "CurrentUser",
     "UserCreate",
     "UserWithRoles",
+    # Database models
+    "User",
+    "Role",
+    "Permission",
+    "UserRole",
+    "RolePermission",
+    "AuthLog",
+    "AzureTenantMapping",
     # Providers
     "BaseAuthProvider",
     "MockAuthProvider",
@@ -81,4 +105,9 @@ __all__ = [
     "UserRepository",
     # Initialization
     "initialize_roles_and_permissions",
+    # Helpers
+    "provision_user_from_azure",
+    "get_user_with_roles_and_permissions",
+    "assign_role_to_user",
+    "log_auth_event",
 ]
