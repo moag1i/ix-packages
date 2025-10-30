@@ -40,6 +40,7 @@ class AuthSettings(BaseSettings):
         IX_DS_AUTH_AZURE_CLIENT_ID=your-client-id
         IX_DS_AUTH_AZURE_CLIENT_SECRET=your-client-secret
         IX_DS_AUTH_AZURE_REDIRECT_URI=http://localhost:8000/auth/callback
+        IX_DS_AUTH_FRONTEND_URL=http://localhost:3000
 
         # Mock auth settings (development)
         IX_DS_AUTH_MOCK_ENABLED=true
@@ -137,6 +138,11 @@ class AuthSettings(BaseSettings):
     azure_scopes: list[str] = Field(
         default=["User.Read"],
         description="Azure AD OAuth scopes",
+    )
+
+    frontend_url: str = Field(
+        default="http://localhost:3000",
+        description="Frontend application URL for OAuth redirects after authentication",
     )
 
     # ==================== MOCK AUTH SETTINGS (DEVELOPMENT) ====================
