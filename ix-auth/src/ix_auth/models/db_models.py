@@ -8,7 +8,7 @@ Auth models use:
 """
 
 from datetime import datetime
-from typing import ClassVar
+from typing import Any, ClassVar
 from uuid import UUID
 
 from ff_storage.pydantic_support import PydanticModel
@@ -265,8 +265,8 @@ class AuthLog(PydanticModel):
         max_length=50,
     )
 
-    event_details: dict | None = Field(
-        None,
+    event_details: dict[str, Any] = Field(
+        default_factory=dict,
         description="Additional event details as JSON",
     )
 
