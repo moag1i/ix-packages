@@ -32,7 +32,7 @@ class AzureADProvider(BaseAuthProvider):
 
         # Get authorization URL
         auth_url, state = provider.get_authorization_url()
-    # Redirect user to auth_url
+    # Redirect user to auth_urlthe
 
         # Exchange code for token (after callback)
         token = await provider.exchange_code_for_token(code)

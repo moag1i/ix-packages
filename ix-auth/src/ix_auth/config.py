@@ -74,8 +74,13 @@ class AuthSettings(BaseSettings):
     )
 
     default_role: str = Field(
-        default="viewer",
+        default="admin",
         description="Default role for new users. Options: admin, underwriter, broker, viewer",
+    )
+
+    fallback_role: str = Field(
+        default="viewer",
+        description="Fallback role if user has no roles assigned. Options: admin, underwriter, broker, viewer",
     )
 
     # ==================== JWT SETTINGS ====================
