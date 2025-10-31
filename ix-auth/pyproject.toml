@@ -82,7 +82,16 @@ asyncio_mode = "auto"
 
 [dependency-groups]
 dev = [
+    "bandit>=1.8.6",
     "pytest>=8.4.2",
     "pytest-asyncio>=1.2.0",
     "pytest-cov>=7.0.0",
 ]
+
+[tool.bandit]
+# Skip B105 (hardcoded_password_string) - these are configuration defaults with runtime validation
+# The AuthSettings class includes validate_production_config() that checks for insecure defaults
+skips = ["B105"]
+exclude_dirs = ["tests/", ".venv/", "build/", "dist/", "__pycache__/"]
+# Run with low severity and above
+severity = "low"

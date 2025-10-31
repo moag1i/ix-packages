@@ -67,6 +67,10 @@ class MockAuthProvider(BaseAuthProvider):
                 - user_id: User ID (defaults to config value or generates new UUID)
                 - role: User role (defaults to config value)
                 - expires_in: Token lifetime in seconds (defaults to config value)
+                - photo_url: Optional URL to user's profile photo (base64 data URI)
+                - azure_oid: Optional Azure AD Object ID
+                - azure_tenant_id: Optional Azure AD Tenant ID
+                - permissions: Optional list of permissions (overrides role-based permissions)
 
         Returns:
             Token object with access_token and user info
@@ -77,6 +81,9 @@ class MockAuthProvider(BaseAuthProvider):
         role = kwargs.get("role", self.settings.mock_default_role)
         expires_in = kwargs.get("expires_in", self.expire_minutes * 60)
         user_id = kwargs.get("user_id")
+        photo_url = kwargs.get("photo_url")
+        azure_oid = kwargs.get("azure_oid")
+        azure_tenant_id = kwargs.get("azure_tenant_id")
 
         # Parse or generate user_id
         if user_id is None:
@@ -89,10 +96,10 @@ class MockAuthProvider(BaseAuthProvider):
         elif not isinstance(user_id, UUID):
             user_id = uuid4()
 
-        # Get permissions for role
-        permissions = self._get_role_permissions(role)
+        # Get permissions for role (allow override from kwargs)
+        permissions = kwargs.get("permissions") or self._get_role_permissions(role)
 
-        # Create token payload
+        # Create token payload (include Azure OID/TID for photo cache lookup)
         now = int(time.time())
         payload = TokenPayload(
             sub=str(user_id),
@@ -104,6 +111,8 @@ class MockAuthProvider(BaseAuthProvider):
             name=name,
             roles=[role],
             permissions=permissions,
+            oid=azure_oid,  # Include Azure OID in JWT payload
+            tid=azure_tenant_id,  # Include Azure Tenant ID in JWT payload
         )
 
         # Encode JWT (use mode="json" to properly serialize UUIDs)
@@ -113,17 +122,29 @@ class MockAuthProvider(BaseAuthProvider):
             algorithm=self.algorithm,
         )
 
+        # Build user dict with optional fields
+        user_dict = {
+            "id": str(user_id),
+            "email": email,
+            "name": name,
+            "roles": [role],
+            "permissions": permissions,
+        }
+
+        # Add optional fields if provided
+        if photo_url:
+            user_dict["photo_url"] = photo_url
+        if azure_oid:
+            user_dict["azure_oid"] = azure_oid
+        if azure_tenant_id:
+            user_dict["azure_tenant_id"] = azure_tenant_id
+
         # Return token response
         return Token(
             access_token=access_token,
             token_type="bearer",
             expires_in=expires_in,
-            user={
-                "id": str(user_id),
-                "email": email,
-                "name": name,
-                "roles": [role],
-            },
+            user=user_dict,
         )
 
     async def validate_token(self, token: str) -> TokenPayload:
