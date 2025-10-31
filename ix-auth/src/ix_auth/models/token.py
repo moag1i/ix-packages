@@ -45,6 +45,7 @@ class Token(BaseModel):
     token_type: str = Field("bearer", description="Token type (always 'bearer')")
     expires_in: int = Field(..., description="Token lifetime in seconds")
     refresh_token: str | None = Field(None, description="Refresh token (optional)")
+    id_token: str | None = Field(None, description="ID token (optional, from OpenID Connect)")
 
     # User info included in response
     user: dict | None = Field(
@@ -89,6 +90,7 @@ class AzureUserInfo(BaseModel):
     givenName: str | None = Field(None, description="First name")
     surname: str | None = Field(None, description="Last name")
     has_photo: bool = Field(False, description="Whether user has a profile photo in Azure AD")
+    tid: str | None = Field(None, description="Azure AD Tenant ID (from ID token)")
 
 
 class MockTokenRequest(BaseModel):

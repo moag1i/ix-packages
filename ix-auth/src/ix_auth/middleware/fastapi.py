@@ -13,7 +13,7 @@ from starlette.responses import JSONResponse
 
 from ..config import AuthSettings
 from ..models import TokenPayload
-from ..providers import AzureADProvider, MockAuthProvider
+from ..providers import AzureADProvider, JWTTokenProvider
 from ..repositories import UserRepository
 
 
@@ -92,7 +92,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         self.azure_provider = None
 
         if settings.mock_enabled:
-            self.mock_provider = MockAuthProvider(settings)
+            self.mock_provider = JWTTokenProvider(settings)
 
         if settings.azure_enabled:
             self.azure_provider = AzureADProvider(settings)

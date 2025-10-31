@@ -65,6 +65,15 @@ async def provision_user_from_azure(
     azure_oid = user_info.get("oid") or user_info.get("id")
     azure_tid = user_info.get("tid")
 
+    if logger:
+        logger.debug(
+            "Extracted Azure user info",
+            email=email,
+            name=name,
+            azure_oid=azure_oid,
+            azure_tid=azure_tid,
+        )
+
     if not email or not azure_oid:
         raise ValueError("Azure user info must contain email and oid")
 
@@ -72,6 +81,11 @@ async def provision_user_from_azure(
     tenant_id = None
     tenant_type = None
     if azure_tid:
+        if logger:
+            logger.debug(
+                "Looking up tenant mapping",
+                azure_tid=azure_tid,
+            )
         mappings = await tenant_mapping_repo.list(
             filters={"azure_tenant_id": azure_tid, "is_active": True}, limit=1
         )
@@ -116,6 +130,19 @@ async def provision_user_from_azure(
         }
         if photo_url:
             update_data["photo_url"] = photo_url
+
+        if logger:
+            logger.info(
+                "Updating existing user (found by Azure OID)",
+                user_id=str(user.id),
+                email=user.email,
+                update_data={
+                    "tenant_id": str(tenant_id) if tenant_id else None,
+                    "tenant_type": tenant_type,
+                    "has_photo": bool(photo_url),
+                },
+            )
+
         await user_repo.update(user.id, update_data)
 
         # Refresh user object with updates
@@ -127,9 +154,11 @@ async def provision_user_from_azure(
 
         if logger:
             logger.info(
-                "User logged in",
+                "User logged in successfully",
                 user_id=str(user.id),
                 email=user.email,
+                tenant_id=str(tenant_id) if tenant_id else None,
+                tenant_type=tenant_type,
             )
         return user
 

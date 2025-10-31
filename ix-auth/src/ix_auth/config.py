@@ -137,8 +137,8 @@ class AuthSettings(BaseSettings):
     )
 
     azure_scopes: list[str] = Field(
-        default=["User.Read"],
-        description="Azure AD OAuth scopes",
+        default=["openid", "profile", "email", "User.Read"],
+        description="Azure AD OAuth scopes (openid, profile, email required for ID token claims)",
     )
 
     frontend_url: str = Field(

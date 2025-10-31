@@ -93,9 +93,10 @@ dev = [
 ]
 
 [tool.bandit]
-# Skip B105 (hardcoded_password_string) - these are configuration defaults with runtime validation
-# The AuthSettings class includes validate_production_config() that checks for insecure defaults
-skips = ["B105"]
+# Skip false positives:
+# - B105 (hardcoded_password_string): Configuration defaults with runtime validation via validate_production_config()
+# - B608 (hardcoded_sql_expressions): Schema names from config, not user input; actual data uses parameterized queries ($1, $2, etc.)
+skips = ["B105", "B608"]
 exclude_dirs = ["tests/", ".venv/", "build/", "dist/", "__pycache__/"]
 # Run with low severity and above
 severity = "low"

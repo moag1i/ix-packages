@@ -103,7 +103,7 @@ jobs:
     - name: Run Bandit security scan
       run: |
         cd ix-auth
-        bandit -r src/ -ll -x "*/tests/*,*/__pycache__/*"
+        bandit -r src/ -ll -s B105,B608
 
     - name: Check for known vulnerabilities
       run: |

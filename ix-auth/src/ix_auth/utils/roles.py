@@ -1,8 +1,10 @@
 """Role and permission initialization utilities."""
 
+from uuid import uuid4
+
 from ff_storage.pydantic_support import PydanticRepository
 
-from ..models.db_models import Permission, Role, RolePermission
+from ..models.db_models import AzureTenantMapping, Permission, Role, RolePermission
 
 # Default system roles
 DEFAULT_ROLES = [
@@ -249,3 +251,86 @@ def get_all_roles() -> list[dict[str, any]]:
         List of role dictionaries with name, description, and is_system
     """
     return DEFAULT_ROLES
+
+
+async def initialize_tenant_mappings(
+    db_pool,
+    azure_tenant_id: str,
+    insurx_tenant_id: str,
+    schema: str = "ix_admin",
+    logger=None,
+) -> None:
+    """
+    Initialize default Azure tenant mapping for InsurX.
+
+    Creates a mapping from the InsurX Azure AD tenant to the InsurX platform tenant.
+    This is idempotent - safe to run multiple times.
+
+    Args:
+        db_pool: Database connection pool (ff-storage PostgresPool)
+        azure_tenant_id: Azure AD tenant ID (from Azure)
+        insurx_tenant_id: InsurX internal tenant ID
+        schema: Database schema for auth tables (default: "ix_admin")
+        logger: Optional logger instance
+    """
+    if logger:
+        logger.info(
+            "Initializing tenant mappings",
+            schema=schema,
+            azure_tenant_id=azure_tenant_id,
+        )
+
+    try:
+        # Create repository
+        tenant_mapping_repo = PydanticRepository(
+            model_class=AzureTenantMapping,
+            db_pool=db_pool,
+            tenant_id=None,  # Auth is global
+            logger=logger,
+        )
+
+        # Check if mapping already exists
+        existing = await tenant_mapping_repo.list(
+            filters={"azure_tenant_id": azure_tenant_id},
+            limit=1,
+        )
+
+        if existing:
+            if logger:
+                logger.info(
+                    "Tenant mapping already exists, skipping",
+                    azure_tenant_id=azure_tenant_id,
+                )
+            return
+
+        # Create InsurX tenant mapping
+        mapping = AzureTenantMapping(
+            id=uuid4(),
+            azure_tenant_id=azure_tenant_id,
+            insurx_tenant_id=insurx_tenant_id,
+            tenant_name="InsurX Exchange",
+            tenant_type="admin",  # InsurX is the exchange/admin, not a broker
+            is_active=True,
+        )
+
+        await tenant_mapping_repo.create(mapping)
+
+        if logger:
+            logger.info(
+                "Created tenant mapping",
+                azure_tenant_id=azure_tenant_id,
+                insurx_tenant_id=insurx_tenant_id,
+                tenant_type="admin",
+            )
+
+        if logger:
+            logger.info("Tenant mapping initialization complete")
+
+    except Exception as e:
+        if logger:
+            logger.error(
+                "Failed to initialize tenant mappings",
+                error=str(e),
+                exc_info=True,
+            )
+        raise

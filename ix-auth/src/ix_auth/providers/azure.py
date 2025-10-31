@@ -155,21 +155,48 @@ class AzureADProvider(BaseAuthProvider):
             response.raise_for_status()
             azure_token = AzureTokenResponse(**response.json())
 
-        # Optionally fetch user info
+        # Optionally extract user info from ID token
         user_info_dict = None
-        if include_user_info:
-            user_info = await self.get_user_info(azure_token.access_token)
-            user_info_dict = {
-                "id": user_info.id,
-                "email": user_info.mail or user_info.userPrincipalName,
-                "name": user_info.displayName,
-            }
+        if include_user_info and azure_token.id_token:
+            try:
+                # Decode and validate ID token to extract user claims
+                decoded = self._decode_and_validate_id_token(azure_token.id_token)
+
+                # Map ID token claims to expected format for provision_user_from_azure
+                user_info_dict = {
+                    "id": decoded.get("oid"),           # Azure Object ID
+                    "oid": decoded.get("oid"),          # Keep both formats
+                    "email": decoded.get("email") or decoded.get("preferred_username"),
+                    "name": decoded.get("name"),
+                    "displayName": decoded.get("name"), # Map name to displayName
+                    "tid": decoded.get("tid"),          # Azure Tenant ID
+                }
+
+            except Exception as e:
+                # Fallback to Graph API if ID token decode fails
+                import logging
+                logging.warning(
+                    "Failed to decode ID token, falling back to Graph API",
+                    exc_info=True,
+                    extra={"error": str(e)},
+                )
+                # Use existing Graph API method as fallback
+                user_info = await self.get_user_info(azure_token.access_token, id_token=azure_token.id_token)
+                user_info_dict = {
+                    "id": user_info.id,
+                    "oid": user_info.id,
+                    "email": user_info.mail or user_info.userPrincipalName,
+                    "name": user_info.displayName,
+                    "displayName": user_info.displayName,
+                    "tid": user_info.tid,
+                }
 
         return Token(
             access_token=azure_token.access_token,
             token_type=azure_token.token_type,
             expires_in=azure_token.expires_in,
             refresh_token=azure_token.refresh_token,
+            id_token=azure_token.id_token,  # Include id_token in response
             user=user_info_dict,
         )
 
@@ -205,15 +232,51 @@ class AzureADProvider(BaseAuthProvider):
             expires_in=azure_token.expires_in,
         )
 
-    async def get_user_info(self, access_token: str) -> AzureUserInfo:
+    def _decode_and_validate_id_token(self, id_token: str) -> dict[str, Any]:
+        """
+        Decode and validate Azure AD ID token.
+
+        Validates JWT signature, expiration, issuer, and audience.
+
+        Args:
+            id_token: ID token JWT string from Azure AD
+
+        Returns:
+            Dict of decoded token claims
+
+        Raises:
+            jwt.InvalidTokenError: If token is invalid or expired
+        """
+        try:
+            # Get signing key from JWKS
+            signing_key = self.jwks_client.get_signing_key_from_jwt(id_token)
+
+            # Decode and validate token
+            payload = jwt.decode(
+                id_token,
+                signing_key.key,
+                algorithms=["RS256"],
+                audience=self.client_id,
+                issuer=f"https://login.microsoftonline.com/{self.tenant_id}/v2.0",
+            )
+
+            return payload
+
+        except jwt.ExpiredSignatureError as e:
+            raise jwt.InvalidTokenError("ID token has expired") from e
+        except jwt.InvalidTokenError:
+            raise
+
+    async def get_user_info(self, access_token: str, id_token: str | None = None) -> AzureUserInfo:
         """
         Get user information from Microsoft Graph API.
 
         Args:
             access_token: Azure AD access token
+            id_token: Optional ID token JWT (contains tenant ID)
 
         Returns:
-            AzureUserInfo with user profile data
+            AzureUserInfo with user profile data and tenant ID
 
         Raises:
             httpx.HTTPError: If API request fails
@@ -224,7 +287,23 @@ class AzureADProvider(BaseAuthProvider):
                 headers={"Authorization": f"Bearer {access_token}"},
             )
             response.raise_for_status()
-            return AzureUserInfo(**response.json())
+            user_data = response.json()
+
+        # Extract tenant ID from ID token if provided
+        tid = None
+        if id_token:
+            try:
+                # Decode ID token without verification (we trust it came from Azure)
+                import jwt
+                decoded = jwt.decode(id_token, options={"verify_signature": False})
+                tid = decoded.get("tid")
+            except Exception:
+                # If decoding fails, tid stays None
+                pass
+
+        # Add tid to user data
+        user_data["tid"] = tid
+        return AzureUserInfo(**user_data)
 
     async def get_user_photo(self, access_token: str, size: str = "96x96") -> bytes | None:
         """

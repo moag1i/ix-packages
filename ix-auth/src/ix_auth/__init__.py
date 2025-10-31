@@ -59,7 +59,7 @@ from .providers import (
     JWTTokenProvider,
 )
 from .repositories import UserRepository
-from .utils.roles import initialize_roles_and_permissions
+from .utils.roles import initialize_roles_and_permissions, initialize_tenant_mappings
 
 __version__ = "0.1.0"
 
@@ -105,6 +105,7 @@ __all__ = [
     "UserRepository",
     # Initialization
     "initialize_roles_and_permissions",
+    "initialize_tenant_mappings",
     # Helpers
     "provision_user_from_azure",
     "get_user_with_roles_and_permissions",
