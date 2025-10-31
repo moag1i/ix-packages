@@ -11,7 +11,7 @@ from uuid import UUID, uuid4
 
 from ff_storage.pydantic_support import PydanticRepository
 
-from ..models import AuthLog, AzureTenantMapping, User, UserRole, UserWithRoles
+from ..models import AuthLog, User, UserRole, UserWithRoles
 
 
 async def provision_user_from_azure(
@@ -73,8 +73,7 @@ async def provision_user_from_azure(
     tenant_type = None
     if azure_tid:
         mappings = await tenant_mapping_repo.list(
-            filters={"azure_tenant_id": azure_tid, "is_active": True},
-            limit=1
+            filters={"azure_tenant_id": azure_tid, "is_active": True}, limit=1
         )
         if not mappings:
             # BLOCK LOGIN: Azure tenant not mapped to InsurX tenant
@@ -109,14 +108,20 @@ async def provision_user_from_azure(
 
     if existing_users:
         user = existing_users[0]
-        # Update last login and photo if provided
-        update_data = {"last_login": datetime.now(timezone.utc)}
+        # Update last login, tenant info, and photo if provided
+        update_data = {
+            "last_login": datetime.now(timezone.utc),
+            "tenant_id": tenant_id,
+            "tenant_type": tenant_type,
+        }
         if photo_url:
             update_data["photo_url"] = photo_url
         await user_repo.update(user.id, update_data)
 
         # Refresh user object with updates
         user.last_login = update_data["last_login"]
+        user.tenant_id = tenant_id
+        user.tenant_type = tenant_type
         if photo_url:
             user.photo_url = photo_url
 
@@ -133,8 +138,13 @@ async def provision_user_from_azure(
 
     if existing_users:
         user = existing_users[0]
-        # Update with Azure OID, last login, and photo if provided
-        update_data = {"azure_oid": azure_oid, "last_login": datetime.now(timezone.utc)}
+        # Update with Azure OID, last login, tenant info, and photo if provided
+        update_data = {
+            "azure_oid": azure_oid,
+            "last_login": datetime.now(timezone.utc),
+            "tenant_id": tenant_id,
+            "tenant_type": tenant_type,
+        }
         if photo_url:
             update_data["photo_url"] = photo_url
         await user_repo.update(user.id, update_data)
@@ -142,6 +152,8 @@ async def provision_user_from_azure(
         # Refresh user object with updates
         user.azure_oid = azure_oid
         user.last_login = update_data["last_login"]
+        user.tenant_id = tenant_id
+        user.tenant_type = tenant_type
         if photo_url:
             user.photo_url = photo_url
 
@@ -160,6 +172,8 @@ async def provision_user_from_azure(
         email=email,
         name=name,
         azure_oid=azure_oid,
+        tenant_id=tenant_id,
+        tenant_type=tenant_type,
         is_active=True,
         is_system=False,
         last_login=datetime.now(timezone.utc),
