@@ -74,6 +74,4 @@ class BaseAuthProvider(ABC):
             NotImplementedError: If provider doesn't support refresh tokens
             ValueError: If refresh token is invalid
         """
-        raise NotImplementedError(
-            f"{self.__class__.__name__} does not support token refresh"
-        )
+        raise NotImplementedError(f"{self.__class__.__name__} does not support token refresh")

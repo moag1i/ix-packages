@@ -1,11 +1,11 @@
 """Authentication providers."""
 
-from .base import BaseAuthProvider
-from .mock import MockAuthProvider
 from .azure import AzureADProvider
+from .base import BaseAuthProvider
+from .mock import JWTTokenProvider
 
 __all__ = [
     "BaseAuthProvider",
-    "MockAuthProvider",
+    "JWTTokenProvider",
     "AzureADProvider",
 ]

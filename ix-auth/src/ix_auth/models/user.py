@@ -28,6 +28,7 @@ class UserWithRoles(BaseModel):
     is_active: bool
     last_login: datetime | None
     roles: list[str]  # Role names
+    permissions: list[str] = []  # Format: "resource:action"
     created_at: datetime | None
     updated_at: datetime | None
     photo_url: str | None = None  # URL to user's profile photo

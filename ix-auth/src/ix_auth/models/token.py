@@ -4,7 +4,6 @@ These are DTO models (not stored in database) for handling
 JWT tokens and OAuth flows.
 """
 
-from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field

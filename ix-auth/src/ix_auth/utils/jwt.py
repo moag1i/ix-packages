@@ -1,12 +1,12 @@
 """JWT utility functions."""
 
-from typing import Any, Dict
+from typing import Any
 
 import jwt
 
 
 def encode_jwt(
-    payload: Dict[str, Any],
+    payload: dict[str, Any],
     secret: str,
     algorithm: str = "HS256",
 ) -> str:
@@ -29,7 +29,7 @@ def decode_jwt(
     secret: str,
     algorithm: str = "HS256",
     **kwargs: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Decode and validate a JWT token.
 
@@ -77,7 +77,7 @@ def validate_jwt_signature(
         return False
 
 
-def get_unverified_payload(token: str) -> Dict[str, Any]:
+def get_unverified_payload(token: str) -> dict[str, Any]:
     """
     Get JWT payload without verification.
 
@@ -93,7 +93,7 @@ def get_unverified_payload(token: str) -> Dict[str, Any]:
     return jwt.decode(token, options={"verify_signature": False})
 
 
-def get_unverified_header(token: str) -> Dict[str, Any]:
+def get_unverified_header(token: str) -> dict[str, Any]:
     """
     Get JWT header without verification.
 

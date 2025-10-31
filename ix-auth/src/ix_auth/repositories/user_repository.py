@@ -4,16 +4,13 @@ Handles CRUD operations for users, roles, and permissions.
 """
 
 from datetime import datetime, timezone
-from typing import Any, List, Optional, Tuple
+from typing import Any
 from uuid import UUID, uuid4
 
 from ..models.db_models import (
-    AuthLog,
     Permission,
     Role,
-    RolePermission,
     User,
-    UserRole,
 )
 
 
@@ -60,7 +57,7 @@ class UserRepository:
 
     # ==================== USER OPERATIONS ====================
 
-    async def get_user_by_id(self, user_id: UUID) -> Optional[User]:
+    async def get_user_by_id(self, user_id: UUID) -> User | None:
         """
         Get user by ID.
 
@@ -81,7 +78,7 @@ class UserRepository:
                 return User(**dict(row))
             return None
 
-    async def get_user_by_email(self, email: str) -> Optional[User]:
+    async def get_user_by_email(self, email: str) -> User | None:
         """
         Get user by email.
 
@@ -102,7 +99,7 @@ class UserRepository:
                 return User(**dict(row))
             return None
 
-    async def get_user_by_azure_oid(self, azure_oid: str) -> Optional[User]:
+    async def get_user_by_azure_oid(self, azure_oid: str) -> User | None:
         """
         Get user by Azure AD Object ID.
 
@@ -195,7 +192,7 @@ class UserRepository:
 
     # ==================== ROLE OPERATIONS ====================
 
-    async def get_role_by_name(self, name: str) -> Optional[Role]:
+    async def get_role_by_name(self, name: str) -> Role | None:
         """
         Get role by name.
 
@@ -216,7 +213,7 @@ class UserRepository:
                 return Role(**dict(row))
             return None
 
-    async def get_all_roles(self) -> List[Role]:
+    async def get_all_roles(self) -> list[Role]:
         """
         Get all roles.
 
@@ -232,7 +229,7 @@ class UserRepository:
             rows = await conn.fetch(query)
             return [Role(**dict(row)) for row in rows]
 
-    async def get_user_roles(self, user_id: UUID) -> List[Role]:
+    async def get_user_roles(self, user_id: UUID) -> list[Role]:
         """
         Get all roles assigned to a user.
 
@@ -257,7 +254,7 @@ class UserRepository:
         self,
         user_id: UUID,
         role_id: UUID,
-        assigned_by: Optional[UUID] = None,
+        assigned_by: UUID | None = None,
     ) -> None:
         """
         Assign role to user.
@@ -307,7 +304,7 @@ class UserRepository:
 
     # ==================== PERMISSION OPERATIONS ====================
 
-    async def get_role_permissions(self, role_id: UUID) -> List[Permission]:
+    async def get_role_permissions(self, role_id: UUID) -> list[Permission]:
         """
         Get all permissions for a role.
 
@@ -328,7 +325,7 @@ class UserRepository:
             rows = await conn.fetch(query, role_id)
             return [Permission(**dict(row)) for row in rows]
 
-    async def get_user_permissions(self, user_id: UUID) -> List[str]:
+    async def get_user_permissions(self, user_id: UUID) -> list[str]:
         """
         Get all permission strings for a user (aggregated from all roles).
 
@@ -385,10 +382,10 @@ class UserRepository:
     async def log_auth_event(
         self,
         event_type: str,
-        user_id: Optional[UUID] = None,
-        event_details: Optional[dict[str, Any]] = None,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
+        user_id: UUID | None = None,
+        event_details: dict[str, Any] | None = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
     ) -> None:
         """
         Log authentication event for audit trail.
@@ -423,7 +420,7 @@ class UserRepository:
 
     async def get_user_with_roles_and_permissions(
         self, user_id: UUID
-    ) -> Tuple[Optional[User], List[str], List[str]]:
+    ) -> tuple[User | None, list[str], list[str]]:
         """
         Get user with their roles and permissions in one query.
 

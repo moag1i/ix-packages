@@ -4,7 +4,7 @@ Auth models use:
 - No temporal versioning (users don't need SCD2)
 - Soft delete for users (is_active flag)
 - Basic timestamps (created_at, updated_at, last_login)
-- Stored in configurable schema (default: public, can be ix_admin)
+- Stored in ix_admin schema for centralized auth management
 """
 
 from datetime import datetime
@@ -33,7 +33,7 @@ class User(PydanticModel):
     """
 
     __table_name__: ClassVar[str] = "users"
-    __schema__: ClassVar[str] = "public"  # Can be overridden to ix_admin
+    __schema__: ClassVar[str] = "ix_admin"  # Auth tables stored in ix_admin schema
     __temporal_strategy__: ClassVar[str] = "none"  # No versioning for auth data
     __soft_delete__: ClassVar[bool] = True  # Use is_active flag
     __multi_tenant__: ClassVar[bool] = False  # Auth is system-wide
@@ -90,6 +90,14 @@ class User(PydanticModel):
         description="Last successful login timestamp",
     )
 
+    # ==================== PROFILE ====================
+
+    photo_url: str | None = Field(
+        None,
+        description="User profile photo as base64 data URI (e.g., data:image/jpeg;base64,...)",
+        max_length=50000,
+    )
+
 
 class Role(PydanticModel):
     """
@@ -107,7 +115,7 @@ class Role(PydanticModel):
     """
 
     __table_name__: ClassVar[str] = "roles"
-    __schema__: ClassVar[str] = "public"
+    __schema__: ClassVar[str] = "ix_admin"  # Auth tables stored in ix_admin schema
     __temporal_strategy__: ClassVar[str] = "none"
     __soft_delete__: ClassVar[bool] = False  # Roles are not soft deleted
     __multi_tenant__: ClassVar[bool] = False
@@ -144,7 +152,7 @@ class Permission(PydanticModel):
     """
 
     __table_name__: ClassVar[str] = "permissions"
-    __schema__: ClassVar[str] = "public"
+    __schema__: ClassVar[str] = "ix_admin"  # Auth tables stored in ix_admin schema
     __temporal_strategy__: ClassVar[str] = "none"
     __soft_delete__: ClassVar[bool] = False
     __multi_tenant__: ClassVar[bool] = False
@@ -183,7 +191,7 @@ class UserRole(PydanticModel):
     """
 
     __table_name__: ClassVar[str] = "user_roles"
-    __schema__: ClassVar[str] = "public"
+    __schema__: ClassVar[str] = "ix_admin"  # Auth tables stored in ix_admin schema
     __temporal_strategy__: ClassVar[str] = "none"
     __soft_delete__: ClassVar[bool] = False
     __multi_tenant__: ClassVar[bool] = False
@@ -221,7 +229,7 @@ class RolePermission(PydanticModel):
     """
 
     __table_name__: ClassVar[str] = "role_permissions"
-    __schema__: ClassVar[str] = "public"
+    __schema__: ClassVar[str] = "ix_admin"  # Auth tables stored in ix_admin schema
     __temporal_strategy__: ClassVar[str] = "none"
     __soft_delete__: ClassVar[bool] = False
     __multi_tenant__: ClassVar[bool] = False
@@ -247,7 +255,7 @@ class AuthLog(PydanticModel):
     """
 
     __table_name__: ClassVar[str] = "auth_logs"
-    __schema__: ClassVar[str] = "public"
+    __schema__: ClassVar[str] = "ix_admin"  # Auth tables stored in ix_admin schema
     __temporal_strategy__: ClassVar[str] = "none"
     __soft_delete__: ClassVar[bool] = False
     __multi_tenant__: ClassVar[bool] = False
@@ -313,7 +321,7 @@ class AzureTenantMapping(PydanticModel):
     """
 
     __table_name__: ClassVar[str] = "azure_tenant_mappings"
-    __schema__: ClassVar[str] = "public"
+    __schema__: ClassVar[str] = "ix_admin"  # Auth tables stored in ix_admin schema
     __temporal_strategy__: ClassVar[str] = "none"
     __soft_delete__: ClassVar[bool] = False
     __multi_tenant__: ClassVar[bool] = False  # Mapping table is global

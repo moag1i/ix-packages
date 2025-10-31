@@ -1,10 +1,8 @@
 """Role and permission initialization utilities."""
 
-from typing import Dict, List, Tuple
 from ff_storage.pydantic_support import PydanticRepository
 
 from ..models.db_models import Permission, Role, RolePermission
-
 
 # Default system roles
 DEFAULT_ROLES = [
@@ -31,7 +29,7 @@ DEFAULT_ROLES = [
 ]
 
 # Default permissions (resource, action, description)
-DEFAULT_PERMISSIONS: List[Tuple[str, str, str]] = [
+DEFAULT_PERMISSIONS: list[tuple[str, str, str]] = [
     ("sui", "read", "View submission underwriting info"),
     ("sui", "write", "Create and modify submission underwriting info"),
     ("rules", "read", "View underwriting rules"),
@@ -43,7 +41,7 @@ DEFAULT_PERMISSIONS: List[Tuple[str, str, str]] = [
 ]
 
 # Role-permission mappings
-ROLE_PERMISSIONS: Dict[str, List[str]] = {
+ROLE_PERMISSIONS: dict[str, list[str]] = {
     "admin": [
         "sui:read",
         "sui:write",
@@ -205,9 +203,7 @@ async def initialize_roles_and_permissions(
                 await role_perm_repo.create(role_permission)
 
             if logger:
-                logger.info(
-                    f"Assigned {len(permissions)} permissions to role '{role_name}'"
-                )
+                logger.info(f"Assigned {len(permissions)} permissions to role '{role_name}'")
 
         if logger:
             logger.info("Roles and permissions initialization complete")
@@ -222,7 +218,7 @@ async def initialize_roles_and_permissions(
         raise
 
 
-def get_role_permissions(role: str) -> List[str]:
+def get_role_permissions(role: str) -> list[str]:
     """
     Get the default permissions for a role.
 
@@ -235,7 +231,7 @@ def get_role_permissions(role: str) -> List[str]:
     return ROLE_PERMISSIONS.get(role.lower(), [])
 
 
-def get_all_permissions() -> List[Tuple[str, str, str]]:
+def get_all_permissions() -> list[tuple[str, str, str]]:
     """
     Get all default permissions.
 
@@ -245,7 +241,7 @@ def get_all_permissions() -> List[Tuple[str, str, str]]:
     return DEFAULT_PERMISSIONS
 
 
-def get_all_roles() -> List[Dict[str, any]]:
+def get_all_roles() -> list[dict[str, any]]:
     """
     Get all default roles.
 

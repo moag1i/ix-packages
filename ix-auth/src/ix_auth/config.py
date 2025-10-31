@@ -1,6 +1,7 @@
 """Authentication configuration settings."""
 
-from typing import Type, TypeVar
+from typing import TypeVar
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -223,7 +224,7 @@ class AuthSettings(BaseSettings):
     # ==================== CLASS METHODS ====================
 
     @classmethod
-    def with_prefix(cls: Type[T], prefix: str) -> T:
+    def with_prefix(cls: type[T], prefix: str) -> T:
         """
         Create settings instance with custom environment prefix.
 
@@ -243,6 +244,7 @@ class AuthSettings(BaseSettings):
             # For fenix-agents (uses FENIX_AUTH_*)
             settings = AuthSettings.with_prefix("FENIX_AUTH_")
         """
+
         # Create a new class with custom config
         class _PrefixedSettings(cls):
             model_config = SettingsConfigDict(

@@ -7,12 +7,11 @@ Provides dependency functions for:
 - Role-based access control
 """
 
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
 
-from ..models import TokenPayload, CurrentUser
-
+from ..models import CurrentUser, TokenPayload
 
 # ==================== BASIC AUTH DEPENDENCIES ====================
 
@@ -47,7 +46,7 @@ async def require_auth(request: Request) -> TokenPayload:
     return request.state.user
 
 
-async def get_current_user(request: Request) -> Optional[CurrentUser]:
+async def get_current_user(request: Request) -> CurrentUser | None:
     """
     Get current authenticated user (optional).
 
@@ -84,7 +83,7 @@ async def get_current_user(request: Request) -> Optional[CurrentUser]:
 
 
 async def get_current_user_required(
-    user: Annotated[Optional[CurrentUser], Depends(get_current_user)]
+    user: Annotated[CurrentUser | None, Depends(get_current_user)],
 ) -> CurrentUser:
     """
     Get current authenticated user (required).
@@ -137,7 +136,7 @@ def require_permission(permission: str):
     """
 
     async def permission_dependency(
-        user: Annotated[CurrentUser, Depends(get_current_user_required)]
+        user: Annotated[CurrentUser, Depends(get_current_user_required)],
     ) -> CurrentUser:
         if permission not in user.permissions:
             raise HTTPException(
@@ -171,7 +170,7 @@ def require_any_permission(*permissions: str):
     """
 
     async def permission_dependency(
-        user: Annotated[CurrentUser, Depends(get_current_user_required)]
+        user: Annotated[CurrentUser, Depends(get_current_user_required)],
     ) -> CurrentUser:
         for perm in permissions:
             if perm in user.permissions:
@@ -207,7 +206,7 @@ def require_all_permissions(*permissions: str):
     """
 
     async def permission_dependency(
-        user: Annotated[CurrentUser, Depends(get_current_user_required)]
+        user: Annotated[CurrentUser, Depends(get_current_user_required)],
     ) -> CurrentUser:
         missing = [p for p in permissions if p not in user.permissions]
         if missing:
@@ -242,7 +241,7 @@ def require_role(role: str):
     """
 
     async def role_dependency(
-        user: Annotated[CurrentUser, Depends(get_current_user_required)]
+        user: Annotated[CurrentUser, Depends(get_current_user_required)],
     ) -> CurrentUser:
         if role not in user.roles:
             raise HTTPException(
@@ -276,7 +275,7 @@ def require_any_role(*roles: str):
     """
 
     async def role_dependency(
-        user: Annotated[CurrentUser, Depends(get_current_user_required)]
+        user: Annotated[CurrentUser, Depends(get_current_user_required)],
     ) -> CurrentUser:
         for r in roles:
             if r in user.roles:

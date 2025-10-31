@@ -1,11 +1,15 @@
-"""Mock authentication provider for development and testing.
+"""JWT Token Provider for InsurX authentication.
 
-This provider generates valid JWT tokens without requiring Azure AD setup.
-It's intended for local development and testing environments.
+This module provides JWT token generation and validation for InsurX authentication.
+It generates production-ready JWT tokens used in both:
+1. Real OAuth flows (after Azure AD authentication)
+2. Mock auth flows (for development/testing without Azure AD)
+
+The tokens are signed with the application's JWT secret and contain InsurX-specific
+claims (user_id, roles, permissions from InsurX database).
 """
 
 import time
-from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -16,28 +20,30 @@ from ..models import Token, TokenPayload
 from .base import BaseAuthProvider
 
 
-class MockAuthProvider(BaseAuthProvider):
+class JWTTokenProvider(BaseAuthProvider):
     """
-    Mock authentication provider for development.
+    JWT Token Provider for InsurX authentication.
 
-    Generates JWT tokens with configurable user info and roles.
-    Does not validate passwords or interact with external services.
+    Generates and validates JWT tokens with InsurX-specific claims.
+    Used in both OAuth flows (after Azure AD authentication) and mock auth flows.
+
+    The generated tokens contain:
+    - User ID (from InsurX database)
+    - Roles (from InsurX RBAC system)
+    - Permissions (from InsurX RBAC system)
+    - Email, name, and other user attributes
 
     Example usage:
         settings = AuthSettings.with_prefix("IX_DS_AUTH_")
-        provider = MockAuthProvider(settings)
+        provider = JWTTokenProvider(settings)
 
-        # Generate default token
-        token = provider.generate_token()
-
-        # Generate token for specific role
-        token = provider.generate_token(role="underwriter")
-
-        # Generate token with custom user info
+        # Generate token (typically after OAuth or mock auth)
         token = provider.generate_token(
             email="john.doe@example.com",
             name="John Doe",
-            role="broker"
+            user_id=user.id,
+            role="underwriter",
+            permissions=["rules:read", "rules:write"]
         )
 
         # Validate token

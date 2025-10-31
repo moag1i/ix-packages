@@ -10,7 +10,6 @@ Uses Microsoft Graph API for user profile retrieval.
 import time
 from typing import Any
 from urllib.parse import urlencode
-from uuid import UUID
 
 import httpx
 import jwt

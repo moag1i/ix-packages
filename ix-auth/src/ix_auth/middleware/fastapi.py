@@ -3,16 +3,17 @@
 Handles JWT token validation and user context injection into requests.
 """
 
-import jwt
 import time
 from uuid import UUID
+
+import jwt
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
 from ..config import AuthSettings
 from ..models import TokenPayload
-from ..providers import MockAuthProvider, AzureADProvider
+from ..providers import AzureADProvider, MockAuthProvider
 from ..repositories import UserRepository
 
 

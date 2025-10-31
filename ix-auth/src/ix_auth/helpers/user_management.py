@@ -7,20 +7,21 @@ These functions can be used across all services and overridden if needed.
 """
 
 from datetime import datetime, timezone
-from typing import List, Optional
 from uuid import UUID, uuid4
 
 from ff_storage.pydantic_support import PydanticRepository
 
-from ..models import AuthLog, Permission, Role, User, UserRole, UserWithRoles
+from ..models import AuthLog, AzureTenantMapping, User, UserRole, UserWithRoles
 
 
 async def provision_user_from_azure(
     user_repo: PydanticRepository,
     role_repo: PydanticRepository,
     user_role_repo: PydanticRepository,
+    tenant_mapping_repo: PydanticRepository,
     user_info: dict,
     default_role: str = "viewer",
+    photo_url: str | None = None,
     logger=None,
 ) -> User:
     """
@@ -33,12 +34,14 @@ async def provision_user_from_azure(
         user_repo: PydanticRepository for User model
         role_repo: PydanticRepository for Role model
         user_role_repo: PydanticRepository for UserRole model
+        tenant_mapping_repo: PydanticRepository for AzureTenantMapping model
         user_info: Azure user info dict with keys:
             - email: str (or mail, or userPrincipalName)
             - name: str (or displayName)
             - oid: str (Azure object ID)
             - tid: str (Azure tenant ID)
         default_role: Default role name for new users (default: "viewer")
+        photo_url: Optional base64 data URI for user's profile photo
         logger: Optional logger instance
 
     Returns:
@@ -65,14 +68,57 @@ async def provision_user_from_azure(
     if not email or not azure_oid:
         raise ValueError("Azure user info must contain email and oid")
 
+    # Lookup tenant mapping (REQUIRED for all Azure AD users)
+    tenant_id = None
+    tenant_type = None
+    if azure_tid:
+        mappings = await tenant_mapping_repo.list(
+            filters={"azure_tenant_id": azure_tid, "is_active": True},
+            limit=1
+        )
+        if not mappings:
+            # BLOCK LOGIN: Azure tenant not mapped to InsurX tenant
+            error_msg = (
+                f"Access denied: Azure tenant '{azure_tid}' is not authorized. "
+                "Please contact your administrator to set up access."
+            )
+            if logger:
+                logger.warning(
+                    "Login blocked: unmapped Azure tenant",
+                    azure_tenant_id=azure_tid,
+                    user_email=email,
+                )
+            raise ValueError(error_msg)
+
+        # Extract tenant info from mapping
+        mapping = mappings[0]
+        tenant_id = mapping.insurx_tenant_id
+        tenant_type = mapping.tenant_type
+
+        if logger:
+            logger.info(
+                "Mapped Azure tenant to InsurX tenant",
+                azure_tenant_id=azure_tid,
+                insurx_tenant_id=str(tenant_id),
+                tenant_type=tenant_type,
+                tenant_name=mapping.tenant_name,
+            )
+
     # Try to find existing user by Azure OID
     existing_users = await user_repo.list(filters={"azure_oid": azure_oid}, limit=1)
 
     if existing_users:
         user = existing_users[0]
-        # Update last login
-        user.last_login = datetime.now(timezone.utc)
-        await user_repo.update(user.id, user)
+        # Update last login and photo if provided
+        update_data = {"last_login": datetime.now(timezone.utc)}
+        if photo_url:
+            update_data["photo_url"] = photo_url
+        await user_repo.update(user.id, update_data)
+
+        # Refresh user object with updates
+        user.last_login = update_data["last_login"]
+        if photo_url:
+            user.photo_url = photo_url
 
         if logger:
             logger.info(
@@ -87,10 +133,17 @@ async def provision_user_from_azure(
 
     if existing_users:
         user = existing_users[0]
-        # Update with Azure OID and last login
+        # Update with Azure OID, last login, and photo if provided
+        update_data = {"azure_oid": azure_oid, "last_login": datetime.now(timezone.utc)}
+        if photo_url:
+            update_data["photo_url"] = photo_url
+        await user_repo.update(user.id, update_data)
+
+        # Refresh user object with updates
         user.azure_oid = azure_oid
-        user.last_login = datetime.now(timezone.utc)
-        await user_repo.update(user.id, user)
+        user.last_login = update_data["last_login"]
+        if photo_url:
+            user.photo_url = photo_url
 
         if logger:
             logger.info(
@@ -110,6 +163,7 @@ async def provision_user_from_azure(
         is_active=True,
         is_system=False,
         last_login=datetime.now(timezone.utc),
+        photo_url=photo_url,
     )
 
     created_user = await user_repo.create(new_user)
@@ -150,7 +204,7 @@ async def get_user_with_roles_and_permissions(
     db_pool,
     schema: str = "ix_admin",
     logger=None,
-) -> Optional[UserWithRoles]:
+) -> UserWithRoles | None:
     """
     Get user with their assigned roles and permissions.
 
@@ -199,22 +253,20 @@ async def get_user_with_roles_and_permissions(
         rows = await conn.fetch(query, user_id)
 
     # Extract unique roles and permissions
-    roles = list(set(row["role_name"] for row in rows if row["role_name"]))
-    permissions = list(set(row["permission"] for row in rows if row["permission"]))
+    roles = list({row["role_name"] for row in rows if row["role_name"]})
+    permissions = list({row["permission"] for row in rows if row["permission"]})
 
     return UserWithRoles(
         id=user.id,
         email=user.email,
         name=user.name,
-        azure_oid=user.azure_oid,
-        tenant_id=user.tenant_id,
-        tenant_type=user.tenant_type,
         is_active=user.is_active,
+        last_login=user.last_login,
         roles=roles,
         permissions=permissions,
-        last_login=user.last_login,
         created_at=user.created_at,
         updated_at=user.updated_at,
+        photo_url=user.photo_url,
     )
 
 
@@ -249,10 +301,7 @@ async def assign_role_to_user(
         ```
     """
     # Check if already assigned
-    existing = await user_role_repo.list(
-        filters={"user_id": user_id, "role_id": role_id},
-        limit=1
-    )
+    existing = await user_role_repo.list(filters={"user_id": user_id, "role_id": role_id}, limit=1)
 
     if existing:
         if logger:
@@ -289,9 +338,9 @@ async def log_auth_event(
     auth_log_repo: PydanticRepository,
     user_id: UUID,
     event_type: str,
-    ip_address: Optional[str] = None,
-    user_agent: Optional[str] = None,
-    details: Optional[dict] = None,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
+    details: dict | None = None,
     logger=None,
 ) -> AuthLog:
     """

@@ -1,9 +1,7 @@
 """Permission utility functions."""
 
-from typing import List
 
-
-def has_permission(user_permissions: List[str], required: str) -> bool:
+def has_permission(user_permissions: list[str], required: str) -> bool:
     """
     Check if user has a specific permission.
 
@@ -18,8 +16,8 @@ def has_permission(user_permissions: List[str], required: str) -> bool:
 
 
 def has_any_permission(
-    user_permissions: List[str],
-    required: List[str],
+    user_permissions: list[str],
+    required: list[str],
 ) -> bool:
     """
     Check if user has ANY of the required permissions.
@@ -37,8 +35,8 @@ def has_any_permission(
 
 
 def has_all_permissions(
-    user_permissions: List[str],
-    required: List[str],
+    user_permissions: list[str],
+    required: list[str],
 ) -> bool:
     """
     Check if user has ALL of the required permissions.
@@ -55,7 +53,7 @@ def has_all_permissions(
     return all(perm in user_permissions for perm in required)
 
 
-def has_role(user_roles: List[str], required: str) -> bool:
+def has_role(user_roles: list[str], required: str) -> bool:
     """
     Check if user has a specific role.
 
@@ -69,7 +67,7 @@ def has_role(user_roles: List[str], required: str) -> bool:
     return required in user_roles
 
 
-def has_any_role(user_roles: List[str], required: List[str]) -> bool:
+def has_any_role(user_roles: list[str], required: list[str]) -> bool:
     """
     Check if user has ANY of the required roles.
 
@@ -85,7 +83,7 @@ def has_any_role(user_roles: List[str], required: List[str]) -> bool:
     return any(role in user_roles for role in required)
 
 
-def has_all_roles(user_roles: List[str], required: List[str]) -> bool:
+def has_all_roles(user_roles: list[str], required: list[str]) -> bool:
     """
     Check if user has ALL of the required roles.
 

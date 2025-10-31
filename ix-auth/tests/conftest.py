@@ -2,9 +2,9 @@
 
 import asyncio
 import os
+from collections.abc import AsyncGenerator
 from datetime import datetime, timezone
-from typing import AsyncGenerator, Generator
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -12,10 +12,9 @@ import pytest_asyncio
 from fastapi import FastAPI
 from httpx import AsyncClient
 
-from ix_auth import AuthSettings, MockAuthProvider, CurrentUser
+from ix_auth import AuthSettings, CurrentUser, MockAuthProvider
 from ix_auth.models import TokenPayload, User
 from ix_auth.repositories import UserRepository
-
 
 # Set test environment variables
 os.environ["AUTH_JWT_SECRET"] = "test-secret-key-for-testing-only"
