@@ -74,7 +74,7 @@ class AuthSettings(BaseSettings):
     )
 
     default_role: str = Field(
-        default="admin",
+        default="viewer",
         description="Default role for new users. Options: admin, underwriter, broker, viewer",
     )
 
