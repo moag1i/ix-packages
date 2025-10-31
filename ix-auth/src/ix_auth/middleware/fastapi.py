@@ -90,7 +90,13 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # Initialize providers based on settings
         self.mock_provider = None
         self.azure_provider = None
+        self.jwt_provider = None
 
+        # Always initialize JWT provider for first-party token validation
+        # This is needed to validate tokens minted by our own OAuth endpoints
+        self.jwt_provider = JWTTokenProvider(settings)
+
+        # Mock provider is only for mock token generation/validation
         if settings.mock_enabled:
             self.mock_provider = JWTTokenProvider(settings)
 
@@ -218,21 +224,28 @@ class AuthMiddleware(BaseHTTPMiddleware):
         Raises:
             jwt.InvalidTokenError: If token is invalid
         """
-        # Try mock provider first (for development)
+        # Try first-party JWT provider (for tokens minted by our OAuth endpoints)
+        if self.jwt_provider:
+            try:
+                return await self.jwt_provider.validate_token(token)
+            except jwt.InvalidTokenError:
+                # If JWT validation fails, try other providers
+                pass
+
+        # Try mock provider for development (if enabled)
         if self.mock_provider:
             try:
                 return await self.mock_provider.validate_token(token)
             except jwt.InvalidTokenError:
-                # If mock validation fails and Azure is enabled, try Azure
-                if not self.azure_provider:
-                    raise
+                # If mock validation fails, try Azure if available
+                pass
 
-        # Try Azure AD provider
+        # Try Azure AD provider (for direct Azure tokens if needed)
         if self.azure_provider:
             return await self.azure_provider.validate_token(token)
 
-        # No providers available
-        raise jwt.InvalidTokenError("No authentication providers configured")
+        # No providers available or all validations failed
+        raise jwt.InvalidTokenError("Token validation failed")
 
     def _get_default_user(self) -> TokenPayload:
         """

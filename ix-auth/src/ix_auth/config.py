@@ -203,7 +203,7 @@ class AuthSettings(BaseSettings):
     )
 
     admin_db_schema: str = Field(
-        default="public",
+        default="ix_admin",
         description="Database schema for auth tables",
     )
 

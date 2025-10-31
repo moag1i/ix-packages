@@ -1,21 +1,17 @@
 """Authentication dependencies."""
 
-from .fastapi import (
+from .fastapi import (  # Convenience; Basic auth; Permission-based; Role-based
     get_current_user,
     get_current_user_required,
-    # Convenience
     require_admin,
     require_all_permissions,
     require_any_permission,
     require_any_role,
-    # Basic auth
     require_auth,
     require_broker,
     require_evaluations_read,
     require_evaluations_write,
-    # Permission-based
     require_permission,
-    # Role-based
     require_role,
     require_rules_read,
     require_rules_write,

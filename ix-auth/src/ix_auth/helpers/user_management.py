@@ -125,9 +125,14 @@ async def provision_user_from_azure(
         # Update last login, tenant info, and photo if provided
         update_data = {
             "last_login": datetime.now(timezone.utc),
-            "tenant_id": tenant_id,
-            "tenant_type": tenant_type,
         }
+
+        # Only update tenant fields if they have values
+        # Convert UUID to string for ff-storage update compatibility
+        if tenant_id is not None:
+            update_data["tenant_id"] = str(tenant_id)
+        if tenant_type is not None:
+            update_data["tenant_type"] = tenant_type
         if photo_url:
             update_data["photo_url"] = photo_url
 
@@ -136,14 +141,28 @@ async def provision_user_from_azure(
                 "Updating existing user (found by Azure OID)",
                 user_id=str(user.id),
                 email=user.email,
+                current_tenant_id=str(user.tenant_id) if user.tenant_id else "NULL",
+                current_tenant_type=user.tenant_type or "NULL",
                 update_data={
                     "tenant_id": str(tenant_id) if tenant_id else None,
                     "tenant_type": tenant_type,
                     "has_photo": bool(photo_url),
                 },
+                tenant_id_type=type(tenant_id).__name__ if tenant_id else "None",
             )
 
-        await user_repo.update(user.id, update_data)
+        updated_user = await user_repo.update(user.id, update_data)
+
+        if logger:
+            logger.info(
+                "User update completed",
+                user_id=str(user.id),
+                updated_tenant_id=str(updated_user.tenant_id)
+                if updated_user and updated_user.tenant_id
+                else "NULL",
+                updated_tenant_type=updated_user.tenant_type if updated_user else "NULL",
+                update_success=updated_user is not None,
+            )
 
         # Refresh user object with updates
         user.last_login = update_data["last_login"]
@@ -168,10 +187,11 @@ async def provision_user_from_azure(
     if existing_users:
         user = existing_users[0]
         # Update with Azure OID, last login, tenant info, and photo if provided
+        # Convert UUID to string for ff-storage update compatibility
         update_data = {
             "azure_oid": azure_oid,
             "last_login": datetime.now(timezone.utc),
-            "tenant_id": tenant_id,
+            "tenant_id": str(tenant_id) if tenant_id else None,
             "tenant_type": tenant_type,
         }
         if photo_url:

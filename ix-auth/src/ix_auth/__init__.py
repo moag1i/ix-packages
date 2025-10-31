@@ -10,20 +10,16 @@ This package provides:
 """
 
 from .config import AuthSettings
-from .dependencies import (
+from .dependencies import (  # Convenience; Basic auth; Permission-based; Role-based
     get_current_user,
     get_current_user_required,
-    # Convenience
     require_admin,
     require_all_permissions,
     require_any_permission,
     require_any_role,
-    # Basic auth
     require_auth,
     require_broker,
-    # Permission-based
     require_permission,
-    # Role-based
     require_role,
     require_underwriter,
 )
@@ -34,30 +30,23 @@ from .helpers import (
     provision_user_from_azure,
 )
 from .middleware import AuthMiddleware
-from .models import (
+from .models import (  # User DTOs; Token models; Database models
     AuthLog,
     AzureTenantMapping,
-    # User DTOs
     CurrentUser,
     MockTokenRequest,
     Permission,
     Role,
     RolePermission,
-    # Token models
     Token,
     TokenPayload,
     TokenRequest,
-    # Database models
     User,
     UserCreate,
     UserRole,
     UserWithRoles,
 )
-from .providers import (
-    AzureADProvider,
-    BaseAuthProvider,
-    JWTTokenProvider,
-)
+from .providers import AzureADProvider, BaseAuthProvider, JWTTokenProvider
 from .repositories import UserRepository
 from .utils.roles import initialize_roles_and_permissions, initialize_tenant_mappings
 

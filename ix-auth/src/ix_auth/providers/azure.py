@@ -32,7 +32,7 @@ class AzureADProvider(BaseAuthProvider):
 
         # Get authorization URL
         auth_url, state = provider.get_authorization_url()
-        # Redirect user to auth_url
+    # Redirect user to auth_url
 
         # Exchange code for token (after callback)
         token = await provider.exchange_code_for_token(code)
@@ -155,41 +155,21 @@ class AzureADProvider(BaseAuthProvider):
             response.raise_for_status()
             azure_token = AzureTokenResponse(**response.json())
 
-        # Optionally extract user info from ID token
+        # Extract user info from ID token if requested
         user_info_dict = None
         if include_user_info and azure_token.id_token:
-            try:
-                # Decode and validate ID token to extract user claims
-                decoded = self._decode_and_validate_id_token(azure_token.id_token)
+            # Decode and validate ID token to extract user claims
+            decoded = self._decode_and_validate_id_token(azure_token.id_token)
 
-                # Map ID token claims to expected format for provision_user_from_azure
-                user_info_dict = {
-                    "id": decoded.get("oid"),           # Azure Object ID
-                    "oid": decoded.get("oid"),          # Keep both formats
-                    "email": decoded.get("email") or decoded.get("preferred_username"),
-                    "name": decoded.get("name"),
-                    "displayName": decoded.get("name"), # Map name to displayName
-                    "tid": decoded.get("tid"),          # Azure Tenant ID
-                }
-
-            except Exception as e:
-                # Fallback to Graph API if ID token decode fails
-                import logging
-                logging.warning(
-                    "Failed to decode ID token, falling back to Graph API",
-                    exc_info=True,
-                    extra={"error": str(e)},
-                )
-                # Use existing Graph API method as fallback
-                user_info = await self.get_user_info(azure_token.access_token, id_token=azure_token.id_token)
-                user_info_dict = {
-                    "id": user_info.id,
-                    "oid": user_info.id,
-                    "email": user_info.mail or user_info.userPrincipalName,
-                    "name": user_info.displayName,
-                    "displayName": user_info.displayName,
-                    "tid": user_info.tid,
-                }
+            # Map ID token claims to expected format
+            user_info_dict = {
+                "id": decoded.get("oid"),
+                "oid": decoded.get("oid"),
+                "email": decoded.get("email") or decoded.get("preferred_username"),
+                "name": decoded.get("name"),
+                "displayName": decoded.get("name"),
+                "tid": decoded.get("tid"),
+            }
 
         return Token(
             access_token=azure_token.access_token,
@@ -294,7 +274,6 @@ class AzureADProvider(BaseAuthProvider):
         if id_token:
             try:
                 # Decode ID token without verification (we trust it came from Azure)
-                import jwt
                 decoded = jwt.decode(id_token, options={"verify_signature": False})
                 tid = decoded.get("tid")
             except Exception:

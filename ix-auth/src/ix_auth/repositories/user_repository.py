@@ -7,11 +7,7 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID, uuid4
 
-from ..models.db_models import (
-    Permission,
-    Role,
-    User,
-)
+from ..models.db_models import Permission, Role, User
 
 
 class UserRepository:
@@ -42,13 +38,13 @@ class UserRepository:
         has_perm = await repo.user_has_permission(user_id, "sui:write")
     """
 
-    def __init__(self, db_pool, schema: str = "public", logger=None):
+    def __init__(self, db_pool, schema: str = "ix_admin", logger=None):
         """
         Initialize user repository.
 
         Args:
             db_pool: Database connection pool (ff-storage PostgresPool)
-            schema: Database schema for auth tables (default: "public")
+            schema: Database schema for auth tables (default: "ix_admin")
             logger: Optional logger instance
         """
         self.db = db_pool

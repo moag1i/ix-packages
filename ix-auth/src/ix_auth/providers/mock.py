@@ -71,7 +71,7 @@ class JWTTokenProvider(BaseAuthProvider):
                 - email: User email (defaults to config value)
                 - name: User name (defaults to config value)
                 - user_id: User ID (defaults to config value or generates new UUID)
-                - role: User role (defaults to config value)
+                - roles: List of user roles (required)
                 - expires_in: Token lifetime in seconds (defaults to config value)
                 - photo_url: Optional URL to user's profile photo (base64 data URI)
                 - azure_oid: Optional Azure AD Object ID
@@ -84,7 +84,13 @@ class JWTTokenProvider(BaseAuthProvider):
         # Extract kwargs with defaults
         email = kwargs.get("email", self.settings.mock_user_email)
         name = kwargs.get("name", self.settings.mock_user_name)
-        role = kwargs.get("role", self.settings.mock_default_role)
+
+        # Roles must be provided as a list
+        roles = kwargs.get("roles")
+        if not roles:
+            # Fall back to default from config if no roles provided
+            roles = [self.settings.mock_default_role]
+
         expires_in = kwargs.get("expires_in", self.expire_minutes * 60)
         user_id = kwargs.get("user_id")
         photo_url = kwargs.get("photo_url")
@@ -102,8 +108,15 @@ class JWTTokenProvider(BaseAuthProvider):
         elif not isinstance(user_id, UUID):
             user_id = uuid4()
 
-        # Get permissions for role (allow override from kwargs)
-        permissions = kwargs.get("permissions") or self._get_role_permissions(role)
+        # Get permissions for roles (allow override from kwargs)
+        permissions = kwargs.get("permissions")
+        if not permissions:
+            # Combine permissions from all roles
+            permissions = []
+            for role in roles:
+                permissions.extend(self._get_role_permissions(role))
+            # Remove duplicates while preserving order
+            permissions = list(dict.fromkeys(permissions))
 
         # Create token payload (include Azure OID/TID for photo cache lookup)
         now = int(time.time())
@@ -115,7 +128,7 @@ class JWTTokenProvider(BaseAuthProvider):
             user_id=user_id,
             email=email,
             name=name,
-            roles=[role],
+            roles=roles,  # Now properly passing all roles
             permissions=permissions,
             oid=azure_oid,  # Include Azure OID in JWT payload
             tid=azure_tenant_id,  # Include Azure Tenant ID in JWT payload
@@ -133,7 +146,7 @@ class JWTTokenProvider(BaseAuthProvider):
             "id": str(user_id),
             "email": email,
             "name": name,
-            "roles": [role],
+            "roles": roles,  # Now includes all roles
             "permissions": permissions,
         }
 

@@ -78,7 +78,7 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
 
 async def initialize_roles_and_permissions(
     db_pool,
-    schema: str = "public",
+    schema: str = "ix_admin",
     logger=None,
 ) -> None:
     """
@@ -91,17 +91,11 @@ async def initialize_roles_and_permissions(
 
     Args:
         db_pool: Database connection pool (ff-storage PostgresPool)
-        schema: Database schema for auth tables (default: "public")
+        schema: Database schema for auth tables (default: "ix_admin")
         logger: Optional logger instance
     """
     if logger:
         logger.info("Initializing roles and permissions", schema=schema)
-
-    # Update model schemas if needed
-    if schema != "public":
-        Role.__schema__ = schema
-        Permission.__schema__ = schema
-        RolePermission.__schema__ = schema
 
     # Create PydanticRepository instances for CRUD operations
     role_repo = PydanticRepository(

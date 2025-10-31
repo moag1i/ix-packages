@@ -1,14 +1,6 @@
 """Authentication models."""
 
-from .db_models import (
-    AuthLog,
-    AzureTenantMapping,
-    Permission,
-    Role,
-    RolePermission,
-    User,
-    UserRole,
-)
+from .db_models import AuthLog, AzureTenantMapping, Permission, Role, RolePermission, User, UserRole
 from .token import (
     AzureTokenResponse,
     AzureUserInfo,
@@ -17,11 +9,7 @@ from .token import (
     TokenPayload,
     TokenRequest,
 )
-from .user import (
-    CurrentUser,
-    UserCreate,
-    UserWithRoles,
-)
+from .user import CurrentUser, UserCreate, UserWithRoles
 
 __all__ = [
     # Token models

@@ -12,7 +12,8 @@ import pytest_asyncio
 from fastapi import FastAPI
 from httpx import AsyncClient
 
-from ix_auth import AuthSettings, CurrentUser, MockAuthProvider
+from ix_auth import AuthSettings, CurrentUser
+from ix_auth import JWTTokenProvider as MockAuthProvider
 from ix_auth.models import TokenPayload, User
 from ix_auth.repositories import UserRepository
 
@@ -126,7 +127,7 @@ def mock_db_pool():
 @pytest.fixture
 def user_repository(mock_db_pool):
     """Create a user repository with mocked database."""
-    return UserRepository(mock_db_pool, schema="public")
+    return UserRepository(mock_db_pool, schema="ix_admin")
 
 
 @pytest.fixture
