@@ -1,6 +1,6 @@
 [project]
 name = "ix-auth"
-version = "0.1.0"
+version = "0.2.0"
 description = "Shared authentication and authorization for InsurX APIs"
 authors = [
     {name = "Ben Moag", email = "ben.moag@insurxglobal.com"}
@@ -16,7 +16,7 @@ dependencies = [
     "pyjwt[crypto]>=2.8.0",
     "python-multipart>=0.0.6",
     "ff-logger==0.4.3",
-    "ff-storage==3.5.0",
+    "ff-storage>=3.7.0",
     "asyncpg>=0.27.0",
 ]
 
