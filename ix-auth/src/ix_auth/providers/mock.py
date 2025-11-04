@@ -76,6 +76,8 @@ class JWTTokenProvider(BaseAuthProvider):
                 - photo_url: Optional URL to user's profile photo (base64 data URI)
                 - azure_oid: Optional Azure AD Object ID
                 - azure_tenant_id: Optional Azure AD Tenant ID
+                - tenant_id: InsurX tenant ID (None = admin with cross-tenant access)
+                - tenant_type: Tenant type ('admin' | 'broker' | 'underwriter' | None)
                 - permissions: Optional list of permissions (overrides role-based permissions)
 
         Returns:
@@ -96,6 +98,10 @@ class JWTTokenProvider(BaseAuthProvider):
         photo_url = kwargs.get("photo_url")
         azure_oid = kwargs.get("azure_oid")
         azure_tenant_id = kwargs.get("azure_tenant_id")
+
+        # Tenant context
+        tenant_id = kwargs.get("tenant_id")  # InsurX tenant ID (None = admin)
+        tenant_type = kwargs.get("tenant_type")  # 'admin' | 'broker' | 'underwriter' | None
 
         # Parse or generate user_id
         if user_id is None:
@@ -130,6 +136,8 @@ class JWTTokenProvider(BaseAuthProvider):
             name=name,
             roles=roles,  # Now properly passing all roles
             permissions=permissions,
+            tenant_id=tenant_id,  # InsurX tenant ID
+            tenant_type=tenant_type,  # InsurX tenant type
             oid=azure_oid,  # Include Azure OID in JWT payload
             tid=azure_tenant_id,  # Include Azure Tenant ID in JWT payload
         )
@@ -157,6 +165,10 @@ class JWTTokenProvider(BaseAuthProvider):
             user_dict["azure_oid"] = azure_oid
         if azure_tenant_id:
             user_dict["azure_tenant_id"] = azure_tenant_id
+        if tenant_id is not None:
+            user_dict["tenant_id"] = str(tenant_id)
+        if tenant_type is not None:
+            user_dict["tenant_type"] = tenant_type
 
         # Return token response
         return Token(

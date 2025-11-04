@@ -29,6 +29,14 @@ class TokenPayload(BaseModel):
     roles: list[str] = Field(default_factory=list, description="User roles")
     permissions: list[str] = Field(default_factory=list, description="User permissions")
 
+    # Tenant context
+    tenant_id: UUID | None = Field(
+        None, description="InsurX tenant ID (NULL = admin cross-tenant access)"
+    )
+    tenant_type: str | None = Field(
+        None, description="Tenant type: 'admin' | 'broker' | 'underwriter' | None"
+    )
+
     # Azure AD specific (optional)
     oid: str | None = Field(None, description="Azure AD Object ID")
     tid: str | None = Field(None, description="Azure AD Tenant ID")

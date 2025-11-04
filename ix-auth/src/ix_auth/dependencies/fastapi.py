@@ -79,6 +79,8 @@ async def get_current_user(request: Request) -> CurrentUser | None:
         name=token.name,
         roles=token.roles,
         permissions=token.permissions,
+        tenant_id=token.tenant_id,  # InsurX tenant ID (None = admin)
+        tenant_type=token.tenant_type,  # Tenant type for scoping
     )
 
 
