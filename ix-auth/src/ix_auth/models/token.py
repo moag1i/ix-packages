@@ -36,6 +36,9 @@ class TokenPayload(BaseModel):
     tenant_type: str | None = Field(
         None, description="Tenant type: 'admin' | 'broker' | 'underwriter' | None"
     )
+    accessible_tenant_ids: list[UUID] = Field(
+        default_factory=list, description="Cached list of readable tenant IDs"
+    )
 
     # Azure AD specific (optional)
     oid: str | None = Field(None, description="Azure AD Object ID")

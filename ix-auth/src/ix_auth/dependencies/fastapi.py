@@ -81,6 +81,7 @@ async def get_current_user(request: Request) -> CurrentUser | None:
         permissions=token.permissions,
         tenant_id=token.tenant_id,  # InsurX tenant ID (None = admin)
         tenant_type=token.tenant_type,  # Tenant type for scoping
+        accessible_tenant_ids=token.accessible_tenant_ids,  # Cached readable tenant IDs
     )
 
 

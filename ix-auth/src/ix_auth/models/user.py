@@ -48,4 +48,5 @@ class CurrentUser(BaseModel):
     permissions: list[str]  # Format: "resource:action"
     tenant_id: UUID | None = None  # NULL = InsurX admin (cross-tenant access)
     tenant_type: str | None = None  # 'broker' | 'underwriter' | None
+    accessible_tenant_ids: list[UUID] = []  # Cached list of readable tenant IDs
     photo_url: str | None = None  # URL to user's profile photo

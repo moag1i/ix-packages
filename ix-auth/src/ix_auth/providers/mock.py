@@ -78,6 +78,7 @@ class JWTTokenProvider(BaseAuthProvider):
                 - azure_tenant_id: Optional Azure AD Tenant ID
                 - tenant_id: InsurX tenant ID (None = admin with cross-tenant access)
                 - tenant_type: Tenant type ('admin' | 'broker' | 'underwriter' | None)
+                - accessible_tenant_ids: List of tenant IDs user can read from (cached)
                 - permissions: Optional list of permissions (overrides role-based permissions)
 
         Returns:
@@ -102,6 +103,9 @@ class JWTTokenProvider(BaseAuthProvider):
         # Tenant context
         tenant_id = kwargs.get("tenant_id")  # InsurX tenant ID (None = admin)
         tenant_type = kwargs.get("tenant_type")  # 'admin' | 'broker' | 'underwriter' | None
+        accessible_tenant_ids = kwargs.get(
+            "accessible_tenant_ids", []
+        )  # Cached readable tenant IDs
 
         # Parse or generate user_id
         if user_id is None:
@@ -138,6 +142,7 @@ class JWTTokenProvider(BaseAuthProvider):
             permissions=permissions,
             tenant_id=tenant_id,  # InsurX tenant ID
             tenant_type=tenant_type,  # InsurX tenant type
+            accessible_tenant_ids=accessible_tenant_ids,  # Cached readable tenant IDs
             oid=azure_oid,  # Include Azure OID in JWT payload
             tid=azure_tenant_id,  # Include Azure Tenant ID in JWT payload
         )
@@ -169,6 +174,8 @@ class JWTTokenProvider(BaseAuthProvider):
             user_dict["tenant_id"] = str(tenant_id)
         if tenant_type is not None:
             user_dict["tenant_type"] = tenant_type
+        if accessible_tenant_ids:
+            user_dict["accessible_tenant_ids"] = [str(tid) for tid in accessible_tenant_ids]
 
         # Return token response
         return Token(
