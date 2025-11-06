@@ -217,6 +217,7 @@ class AzureADProvider(BaseAuthProvider):
         Decode and validate Azure AD ID token.
 
         Validates JWT signature, expiration, issuer, and audience.
+        Supports both single-tenant and multi-tenant validation based on config.
 
         Args:
             id_token: ID token JWT string from Azure AD
@@ -226,19 +227,46 @@ class AzureADProvider(BaseAuthProvider):
 
         Raises:
             jwt.InvalidTokenError: If token is invalid or expired
+            ValueError: If issuer is invalid (multi-tenant mode)
         """
         try:
             # Get signing key from JWKS
             signing_key = self.jwks_client.get_signing_key_from_jwt(id_token)
 
-            # Decode and validate token
-            payload = jwt.decode(
-                id_token,
-                signing_key.key,
-                algorithms=["RS256"],
-                audience=self.client_id,
-                issuer=f"https://login.microsoftonline.com/{self.tenant_id}/v2.0",
-            )
+            # Decode options
+            decode_options = {
+                "verify_signature": True,
+                "verify_aud": True,
+                "verify_exp": True,
+            }
+
+            # Multi-tenant support: conditionally validate issuer
+            if self.settings.allow_any_azure_tenant:
+                # Allow any Azure AD tenant - skip strict issuer validation
+                decode_options["verify_iss"] = False
+                payload = jwt.decode(
+                    id_token,
+                    signing_key.key,
+                    algorithms=["RS256"],
+                    audience=self.client_id,
+                    options=decode_options,
+                )
+
+                # Manual issuer pattern validation for security
+                issuer = payload.get("iss", "")
+                if not issuer.startswith("https://login.microsoftonline.com/"):
+                    raise ValueError(f"Invalid issuer domain: {issuer}")
+                if not issuer.endswith("/v2.0"):
+                    raise ValueError(f"Invalid issuer format (must be v2.0): {issuer}")
+            else:
+                # Single-tenant: strict issuer validation (current behavior)
+                payload = jwt.decode(
+                    id_token,
+                    signing_key.key,
+                    algorithms=["RS256"],
+                    audience=self.client_id,
+                    issuer=f"https://login.microsoftonline.com/{self.tenant_id}/v2.0",
+                )
 
             return payload
 

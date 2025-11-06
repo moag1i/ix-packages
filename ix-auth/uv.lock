@@ -330,6 +330,22 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-identity"
+version = "1.25.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-core" },
+    { name = "cryptography" },
+    { name = "msal" },
+    { name = "msal-extensions" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/06/8d/1a6c41c28a37eab26dc85ab6c86992c700cd3f4a597d9ed174b0e9c69489/azure_identity-1.25.1.tar.gz", hash = "sha256:87ca8328883de6036443e1c37b40e8dc8fb74898240f61071e09d2e369361456", size = 279826, upload-time = "2025-10-06T20:30:02.194Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/83/7b/5652771e24fff12da9dde4c20ecf4682e606b104f26419d139758cc935a6/azure_identity-1.25.1-py3-none-any.whl", hash = "sha256:e9edd720af03dff020223cd269fa3a61e8f345ea75443858273bcb44844ab651", size = 191317, upload-time = "2025-10-06T20:30:04.251Z" },
+]
+
+[[package]]
 name = "azure-storage-blob"
 version = "12.27.1"
 source = { registry = "https://pypi.org/simple" }
@@ -949,7 +965,7 @@ wheels = [
 
 [[package]]
 name = "ff-storage"
-version = "3.5.0"
+version = "3.8.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aioboto3" },
@@ -957,6 +973,7 @@ dependencies = [
     { name = "aiomysql" },
     { name = "aioodbc" },
     { name = "asyncpg" },
+    { name = "azure-identity" },
     { name = "azure-storage-blob" },
     { name = "boto3" },
     { name = "mysql-connector-python" },
@@ -965,9 +982,9 @@ dependencies = [
     { name = "pymysql" },
     { name = "pyodbc" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d2/1e/610e447a1f53d53002972dcc0f32d89f87fbf8cf0b94d941539da68a5a6a/ff_storage-3.5.0.tar.gz", hash = "sha256:26cb23eea3bde3368e445090a40defce863e8f60c1b2636de9a03d5a1fb07acb", size = 134429, upload-time = "2025-10-28T08:49:37.101Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b5/37/718c9de3b3eda3cc5e28c5bfd1c92eb333bc1b92246a57986b6c3ea90d51/ff_storage-3.8.0.tar.gz", hash = "sha256:f8e35ff440f06141b8522f97124c4567b33c729334b70a695830b82c3b1b453e", size = 137491, upload-time = "2025-11-04T19:18:32.677Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/86/2a/c62c0dfe051e8fc32320a2933a4a1b7e1808b8d34cdab0988c5d3b30b2c2/ff_storage-3.5.0-py3-none-any.whl", hash = "sha256:751f91f3e94dd8dc27f1680a27188c8cbe104b9811e97d9a9cc77994023f6fb3", size = 147963, upload-time = "2025-10-28T08:49:35.42Z" },
+    { url = "https://files.pythonhosted.org/packages/ae/25/6ef794f0e0b1977998bb1ff6b1f7366473414fcf268b3ca2710c8cdbfa6b/ff_storage-3.8.0-py3-none-any.whl", hash = "sha256:7ce26c24eea7318da20d35523e4e558dc2c90d35b18917f24ff8bf0e741bb1ae", size = 151134, upload-time = "2025-11-04T19:18:28.634Z" },
 ]
 
 [[package]]
@@ -1175,7 +1192,7 @@ wheels = [
 
 [[package]]
 name = "ix-auth"
-version = "0.1.0"
+version = "0.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "asyncpg" },
@@ -1215,7 +1232,7 @@ requires-dist = [
     { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
     { name = "fastapi", specifier = ">=0.104.0" },
     { name = "ff-logger", specifier = "==0.4.3" },
-    { name = "ff-storage", specifier = "==3.5.0" },
+    { name = "ff-storage", specifier = ">=3.7.0" },
     { name = "httpx", specifier = ">=0.25.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0.0" },
     { name = "passlib", extras = ["bcrypt"], specifier = ">=1.7.4" },
@@ -1268,6 +1285,32 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d6/54/cfe61301667036ec958cb99bd3efefba235e65cdeb9c84d24a8293ba1d90/mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba", size = 8729, upload-time = "2022-08-14T12:40:10.846Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8", size = 9979, upload-time = "2022-08-14T12:40:09.779Z" },
+]
+
+[[package]]
+name = "msal"
+version = "1.34.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cryptography" },
+    { name = "pyjwt", extra = ["crypto"] },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/cf/0e/c857c46d653e104019a84f22d4494f2119b4fe9f896c92b4b864b3b045cc/msal-1.34.0.tar.gz", hash = "sha256:76ba83b716ea5a6d75b0279c0ac353a0e05b820ca1f6682c0eb7f45190c43c2f", size = 153961, upload-time = "2025-09-22T23:05:48.989Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c2/dc/18d48843499e278538890dc709e9ee3dea8375f8be8e82682851df1b48b5/msal-1.34.0-py3-none-any.whl", hash = "sha256:f669b1644e4950115da7a176441b0e13ec2975c29528d8b9e81316023676d6e1", size = 116987, upload-time = "2025-09-22T23:05:47.294Z" },
+]
+
+[[package]]
+name = "msal-extensions"
+version = "1.3.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "msal" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/01/99/5d239b6156eddf761a636bded1118414d161bd6b7b37a9335549ed159396/msal_extensions-1.3.1.tar.gz", hash = "sha256:c5b0fd10f65ef62b5f1d62f4251d51cbcaf003fcedae8c91b040a488614be1a4", size = 23315, upload-time = "2025-03-14T23:51:03.902Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5e/75/bd9b7bb966668920f06b200e84454c8f3566b102183bc55c5473d96cb2b9/msal_extensions-1.3.1-py3-none-any.whl", hash = "sha256:96d3de4d034504e969ac5e85bae8106c8373b5c6568e4c8fa7af2eca9dbe6bca", size = 20583, upload-time = "2025-03-14T23:51:03.016Z" },
 ]
 
 [[package]]

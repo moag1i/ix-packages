@@ -357,6 +357,12 @@ class AzureTenantMapping(PydanticModel):
         max_length=20,
     )
 
+    default_role: str | None = Field(
+        "viewer",
+        description="Default role assigned to new users from this Azure AD tenant",
+        max_length=50,
+    )
+
     # ==================== STATUS ====================
 
     is_active: bool = Field(

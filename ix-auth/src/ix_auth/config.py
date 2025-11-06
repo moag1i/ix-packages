@@ -146,6 +146,26 @@ class AuthSettings(BaseSettings):
         description="Azure AD OAuth scopes (openid, profile, email required for ID token claims)",
     )
 
+    # ==================== MULTI-TENANT SUPPORT ====================
+
+    allow_any_azure_tenant: bool = Field(
+        default=False,
+        description="Allow JWT tokens from any Azure AD tenant (not just InsurX tenant). "
+        "When enabled, removes hardcoded issuer validation. Secure by default (false).",
+    )
+
+    auto_register_tenants: bool = Field(
+        default=False,
+        description="Automatically register new Azure AD tenants on first login. "
+        "When disabled, unmapped tenants are blocked. Secure by default (false).",
+    )
+
+    auto_register_default_role: str = Field(
+        default="viewer",
+        description="Default role for auto-registered tenants (most restrictive). "
+        "Options: admin, underwriter, broker, viewer",
+    )
+
     frontend_url: str = Field(
         default="http://localhost:3000",
         description="Frontend application URL for OAuth redirects after authentication",

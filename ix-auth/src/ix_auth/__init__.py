@@ -9,6 +9,8 @@ This package provides:
 - Configurable environment prefixes
 """
 
+from importlib.metadata import PackageNotFoundError, version
+
 from .config import AuthSettings
 from .dependencies import (  # Convenience; Basic auth; Permission-based; Role-based
     get_current_user,
@@ -50,7 +52,12 @@ from .providers import AzureADProvider, BaseAuthProvider, JWTTokenProvider
 from .repositories import UserRepository
 from .utils.roles import initialize_roles_and_permissions, initialize_tenant_mappings
 
-__version__ = "0.1.0"
+# Version is read from package metadata (pyproject.toml)
+try:
+    __version__ = version("ix-auth")
+except PackageNotFoundError:
+    # Package is not installed, fallback for development
+    __version__ = "0.0.0+dev"
 
 __all__ = [
     # Configuration

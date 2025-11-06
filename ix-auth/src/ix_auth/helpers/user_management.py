@@ -23,12 +23,15 @@ async def provision_user_from_azure(
     default_role: str = "viewer",
     photo_url: str | None = None,
     logger=None,
+    auto_register_tenants: bool = False,
+    auto_register_default_role: str = "viewer",
 ) -> User:
     """
     Provision user from Azure AD information.
 
     Creates user if doesn't exist, or updates last login if exists.
     Assigns default role to new users.
+    Supports auto-registration of new Azure AD tenants.
 
     Args:
         user_repo: PydanticRepository for User model
@@ -43,9 +46,14 @@ async def provision_user_from_azure(
         default_role: Default role name for new users (default: "viewer")
         photo_url: Optional base64 data URI for user's profile photo
         logger: Optional logger instance
+        auto_register_tenants: Auto-create tenant mappings if not found (default: False)
+        auto_register_default_role: Default role for auto-registered tenants (default: "viewer")
 
     Returns:
         User: Provisioned user
+
+    Raises:
+        ValueError: If tenant mapping not found and auto_register_tenants is False
 
     Example:
         ```python
@@ -53,8 +61,11 @@ async def provision_user_from_azure(
             user_repo=user_repo,
             role_repo=role_repo,
             user_role_repo=user_role_repo,
+            tenant_mapping_repo=tenant_mapping_repo,
             user_info=azure_user_info,
             default_role="viewer",
+            auto_register_tenants=True,
+            auto_register_default_role="viewer",
             logger=logger,
         )
         ```
@@ -80,6 +91,8 @@ async def provision_user_from_azure(
     # Lookup tenant mapping (REQUIRED for all Azure AD users)
     tenant_id = None
     tenant_type = None
+    tenant_default_role = None  # Track per-tenant default role
+
     if azure_tid:
         if logger:
             logger.debug(
@@ -89,33 +102,76 @@ async def provision_user_from_azure(
         mappings = await tenant_mapping_repo.list(
             filters={"azure_tenant_id": azure_tid, "is_active": True}, limit=1
         )
+
         if not mappings:
-            # BLOCK LOGIN: Azure tenant not mapped to InsurX tenant
-            error_msg = (
-                f"Access denied: Azure tenant '{azure_tid}' is not authorized. "
-                "Please contact your administrator to set up access."
-            )
-            if logger:
-                logger.warning(
-                    "Login blocked: unmapped Azure tenant",
+            # Auto-registration logic
+            if auto_register_tenants:
+                if logger:
+                    logger.info(
+                        "Auto-registering new Azure AD tenant",
+                        azure_tenant_id=azure_tid,
+                        user_email=email,
+                    )
+
+                # Import AzureTenantMapping model
+                from ..models import AzureTenantMapping
+
+                # Create new tenant mapping
+                # Note: insurx_tenant_id should ideally reference an actual tenant
+                # For now, using a placeholder UUID - you may want to create a tenant first
+                new_mapping = AzureTenantMapping(
+                    id=uuid4(),
                     azure_tenant_id=azure_tid,
-                    user_email=email,
+                    insurx_tenant_id=uuid4(),  # Placeholder - consider creating actual tenant
+                    tenant_name=f"Auto-registered: {azure_tid[:8]}",
+                    tenant_type="broker",  # Default to broker type
+                    default_role=auto_register_default_role,
+                    is_active=True,
                 )
-            raise ValueError(error_msg)
 
-        # Extract tenant info from mapping
-        mapping = mappings[0]
-        tenant_id = mapping.insurx_tenant_id
-        tenant_type = mapping.tenant_type
+                created_mapping = await tenant_mapping_repo.create(new_mapping)
 
-        if logger:
-            logger.info(
-                "Mapped Azure tenant to InsurX tenant",
-                azure_tenant_id=azure_tid,
-                insurx_tenant_id=str(tenant_id),
-                tenant_type=tenant_type,
-                tenant_name=mapping.tenant_name,
-            )
+                tenant_id = created_mapping.insurx_tenant_id
+                tenant_type = created_mapping.tenant_type
+                tenant_default_role = created_mapping.default_role
+
+                if logger:
+                    logger.info(
+                        "Auto-registered new tenant mapping",
+                        azure_tenant_id=azure_tid,
+                        insurx_tenant_id=str(tenant_id),
+                        tenant_type=tenant_type,
+                        default_role=tenant_default_role,
+                    )
+            else:
+                # BLOCK LOGIN: Azure tenant not mapped to InsurX tenant
+                error_msg = (
+                    f"Access denied: Azure tenant '{azure_tid}' is not authorized. "
+                    "Please contact your administrator to set up access."
+                )
+                if logger:
+                    logger.warning(
+                        "Login blocked: unmapped Azure tenant",
+                        azure_tenant_id=azure_tid,
+                        user_email=email,
+                    )
+                raise ValueError(error_msg)
+        else:
+            # Extract tenant info from existing mapping
+            mapping = mappings[0]
+            tenant_id = mapping.insurx_tenant_id
+            tenant_type = mapping.tenant_type
+            tenant_default_role = getattr(mapping, "default_role", None)
+
+            if logger:
+                logger.info(
+                    "Mapped Azure tenant to InsurX tenant",
+                    azure_tenant_id=azure_tid,
+                    insurx_tenant_id=str(tenant_id),
+                    tenant_type=tenant_type,
+                    tenant_name=mapping.tenant_name,
+                    tenant_default_role=tenant_default_role,
+                )
 
     # Try to find existing user by Azure OID
     existing_users = await user_repo.list(filters={"azure_oid": azure_oid}, limit=1)
@@ -232,7 +288,9 @@ async def provision_user_from_azure(
     created_user = await user_repo.create(new_user)
 
     # Assign default role to new user
-    default_roles = await role_repo.list(filters={"name": default_role}, limit=1)
+    # Use per-tenant default role if available, otherwise use global default
+    effective_default_role = tenant_default_role or default_role
+    default_roles = await role_repo.list(filters={"name": effective_default_role}, limit=1)
     if default_roles:
         user_role = UserRole(
             id=uuid4(),
@@ -247,7 +305,8 @@ async def provision_user_from_azure(
             logger.info(
                 "Assigned default role to new user",
                 user_id=str(created_user.id),
-                role=default_role,
+                role=effective_default_role,
+                source="tenant_mapping" if tenant_default_role else "global_config",
             )
 
     if logger:
