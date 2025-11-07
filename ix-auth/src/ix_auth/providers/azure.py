@@ -137,13 +137,15 @@ class AzureADProvider(BaseAuthProvider):
         Raises:
             httpx.HTTPError: If token exchange fails
         """
+        # NOTE: Do NOT include 'scope' parameter in token exchange request.
+        # The authorization code already contains the granted scopes.
+        # Including it can cause 401 errors with Microsoft's token endpoint.
         data = {
             "client_id": self.client_id,
             "client_secret": self.client_secret,
             "code": code,
             "redirect_uri": self.redirect_uri,
             "grant_type": "authorization_code",
-            "scope": " ".join(self.scopes),
         }
 
         async with httpx.AsyncClient() as client:
