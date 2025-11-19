@@ -172,7 +172,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return self._auth_error(f"Invalid token: {str(e)}", status_code=401)
         except Exception as e:
             if self.logger:
-                self.logger.error("Auth middleware error", error=str(e), exc_info=True)
+                self.logger.error(
+                    "Auth middleware error",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
             return self._auth_error("Authentication error", status_code=500)
 
     def _is_public_path(self, path: str) -> bool:

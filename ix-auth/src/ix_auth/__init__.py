@@ -48,6 +48,7 @@ from .models import (  # User DTOs; Token models; Database models
     UserRole,
     UserWithRoles,
 )
+from .models.role_config import PermissionConfig, RoleConfig, RolePermissionConfig
 from .providers import AzureADProvider, BaseAuthProvider, JWTTokenProvider
 from .repositories import UserRepository
 from .utils.roles import initialize_roles_and_permissions, initialize_tenant_mappings
@@ -62,6 +63,9 @@ except PackageNotFoundError:
 __all__ = [
     # Configuration
     "AuthSettings",
+    "RolePermissionConfig",
+    "RoleConfig",
+    "PermissionConfig",
     # Token models
     "Token",
     "TokenPayload",

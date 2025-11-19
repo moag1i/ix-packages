@@ -50,6 +50,7 @@ repos:
       - id: bandit
         args: ['-ll', '--recursive', 'src/', '-s', 'B105,B608']
         exclude: ^tests/
+        pass_filenames: false
 
   # Documentation
   - repo: https://github.com/pycqa/pydocstyle

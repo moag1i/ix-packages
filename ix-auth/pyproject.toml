@@ -1,6 +1,6 @@
 [project]
 name = "ix-auth"
-version = "0.3.0"
+version = "0.4.0"
 description = "Shared authentication and authorization for InsurX APIs"
 authors = [
     {name = "Ben Moag", email = "ben.moag@insurxglobal.com"}
